@@ -2,89 +2,64 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>בדיקת גישה לקובץ GitHub</title>
+  <title>בדיקת חיבור ל־levels.json</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #f2f2f2;
-      text-align: right;
-      padding: 20px;
-      direction: rtl;
-    }
-    h1 {
-      text-align: center;
-    }
-    input, button, textarea {
-      width: 100%;
-      font-size: 16px;
-      margin: 10px 0;
-      padding: 8px;
-      box-sizing: border-box;
-    }
-    textarea {
-      height: 400px;
-      white-space: pre-wrap;
-      direction: ltr;
-    }
-    .btn {
-      background: #333;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
+    body { font-family: system-ui, sans-serif; padding: 20px; background: #f2f2f2; text-align: right; direction: rtl; }
+    h1 { font-size: 24px; margin-bottom: 20px; }
+    textarea { width: 100%; height: 300px; font-family: monospace; font-size: 14px; direction: ltr; }
+    input, button { padding: 10px; font-size: 16px; width: 100%; margin-bottom: 10px; }
+    .btn { background: #333; color: white; border: none; border-radius: 5px; cursor: pointer; }
   </style>
 </head>
 <body>
+  <h1>🔍 בדיקת גישה ל־levels.json</h1>
+  <input type="password" id="token" placeholder="הכנס טוקן GitHub כאן" />
+  <button class="btn" onclick="runTest()">התחל בדיקה</button>
+  <textarea id="output" readonly></textarea>
 
-<h1>🔍 בדיקת גישה לקובץ levels.json</h1>
+  <script>
+    async function runTest() {
+      const token = document.getElementById("token").value.trim();
+      const log = (msg) => {
+        const out = document.getElementById("output");
+        out.value += msg + "\n";
+        out.scrollTop = out.scrollHeight;
+      };
 
-<label for="token">טוקן GitHub:</label>
-<input type="password" id="token" placeholder="הדבק כאן את הטוקן שלך">
+      document.getElementById("output").value = "";
+      if (!token) return log("❌ לא הוזן טוקן");
 
-<button class="btn" onclick="runTest()">בדוק גישה</button>
+      log("🚀 מתחיל בדיקה...");
+      log("📥 מבצע GET ל־levels.json...");
 
-<label for="output">📄 פלט הבדיקה:</label>
-<textarea id="output" readonly></textarea>
+      const url = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
 
-<script>
-async function runTest() {
-  const token = document.getElementById('token').value.trim();
-  const output = document.getElementById('output');
-  const url = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
+      try {
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `token ${token}`,
+            Accept: "application/vnd.github.v3+json"
+          }
+        });
 
-  output.value = "📥 שולח בקשת GET ל־levels.json...\n";
+        if (!res.ok) {
+          log(`❌ שגיאה: ${res.status} ${res.statusText}`);
+          const err = await res.json();
+          if (err.message) log("🧾 הודעת שגיאה: " + err.message);
+          return;
+        }
 
-  try {
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    output.value += `\n🔢 סטטוס: ${res.status}`;
-    output.value += `\n✅ res.ok: ${res.ok}`;
-
-    let raw;
-    try {
-      raw = await res.text();
-      output.value += `\n📄 תגובה גולמית:\n${raw}`;
-    } catch (innerErr) {
-      output.value += `\n⚠️ לא ניתן לקרוא את התגובה: ${innerErr.message}`;
+        const json = await res.json();
+        log("✅ קובץ אותר בהצלחה!");
+        log("🔢 SHA: " + json.sha);
+        log("📦 תוכן (base64):");
+        log(json.content.substring(0, 200) + "...");
+      } catch (e) {
+        log("💥 שגיאת JavaScript כללית:");
+        log(e.message || e.toString());
+      }
     }
-
-    let json;
-    try {
-      json = JSON.parse(raw);
-      output.value += `\n\n🧾 JSON Parsed:\n` + JSON.stringify(json, null, 2);
-    } catch (parseErr) {
-      output.value += `\n\n🚫 שגיאה בניסיון לנתח JSON: ${parseErr.message}`;
-    }
-
-  } catch (err) {
-    output.value += `\n\n💥 שגיאת JavaScript כללית:\n${err.stack}`;
-  }
-}
-</script>
-
+  </script>
 </body>
 </html>
