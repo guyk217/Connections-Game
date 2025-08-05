@@ -1,32 +1,80 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>בדיקת fetch פשוטה</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>בדיקת טוקן</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; direction: rtl; }
-    #output { white-space: pre-wrap; background: #f2f2f2; padding: 10px; border-radius: 6px; }
+    body { font-family: sans-serif; background: #f8f8f8; padding: 20px; direction: rtl; }
+    h1 { font-size: 22px; margin-bottom: 10px; }
+    textarea { width: 100%; height: 100px; font-family: monospace; direction: ltr; }
+    button { padding: 10px; font-size: 16px; margin-top: 10px; }
+    pre { background: #eee; padding: 10px; direction: ltr; overflow-x: auto; }
   </style>
 </head>
 <body>
-  <h1>בדיקת fetch פשוטה (ללא טוקן)</h1>
-  <button onclick="runTest()">🚀 התחל בדיקה</button>
-  <div id="output">⬅️ תוצאות יופיעו כאן</div>
+  <h1>🔐 בדיקת טוקן GitHub מול levels.json</h1>
+  <label>הכנס את הטוקן:</label>
+  <input type="password" id="token" style="width:100%; font-size:16px; padding:8px" placeholder="github_pat_...">
+  <button onclick="runTest()">הפעל בדיקה</button>
+  <pre id="output"></pre>
 
-  <script>
-    async function runTest() {
-      document.getElementById('output').textContent = '📥 שולח בקשת GET לקובץ JSON ציבורי...';
-      try {
-        const res = await fetch('https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json');
-        const json = await res.json();
-        document.getElementById('output').textContent =
-          '✅ הצלחה!\n\n🔢 מספר שלבים שנמצאו: ' + json.length +
-          '\n\n📋 שמות שלבים:\n' + json.map(l => '- ' + l.title).join('\n');
-      } catch (e) {
-        document.getElementById('output').textContent =
-          '💥 שגיאה:\n' + e + '\n\n📄 אולי הקובץ לא קיים או לא נגיש?';
-      }
+<script>
+async function runTest() {
+  const token = document.getElementById("token").value.trim();
+  const output = document.getElementById("output");
+  const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
+
+  output.textContent = "🚀 מתחיל בדיקה...\n";
+
+  try {
+    output.textContent += "📥 מבצע GET ל־levels.json...\n";
+    const res = await fetch(apiUrl, {
+      headers: { Authorization: `token ${token}` }
+    });
+
+    const resJson = await res.json();
+
+    if (!res.ok || !resJson.content || !resJson.sha) {
+      output.textContent += `❌ שגיאה בקריאת הקובץ:\n${JSON.stringify(resJson, null, 2)}\n`;
+      return;
     }
-  </script>
+
+    output.textContent += "✅ הצלחה בקריאת הקובץ!\n";
+
+    const originalSha = resJson.sha;
+    const originalContent = atob(resJson.content);
+
+    // ניסיון לשמור את אותו תוכן בלי לשנות דבר
+    output.textContent += "💾 מנסה לכתוב מחדש את אותו תוכן (בדיקת PUT)...\n";
+
+    const resPut = await fetch(apiUrl, {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: "🔁 Test write from test.html",
+        content: btoa(unescape(encodeURIComponent(originalContent))),
+        sha: originalSha
+      })
+    });
+
+    const putJson = await resPut.json();
+
+    if (!resPut.ok) {
+      output.textContent += `❌ שגיאה ב־PUT:\n${JSON.stringify(putJson, null, 2)}\n`;
+      return;
+    }
+
+    output.textContent += "✅ הצלחה בכתיבה לקובץ!\n";
+    output.textContent += `🔗 כתובת commit:\n${putJson.commit?.html_url || "לא זמין"}\n`;
+
+  } catch (err) {
+    output.textContent += `💥 שגיאת JavaScript:\n${err}\n`;
+  }
+}
+</script>
 </body>
 </html>
