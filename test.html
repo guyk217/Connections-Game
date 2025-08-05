@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>GitHub JSON Test</title>
+  <title>בדיקת כתיבה ל־GitHub</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: sans-serif; direction: rtl; padding: 20px; }
@@ -12,47 +12,71 @@
 </head>
 <body>
 
-<h1>בדיקת גישה לקובץ!!! JSON בגיטהאב</h1>
+<h1>בדיקת קריאה וכתיבה ל־GitHub</h1>
 
 <input id="token" type="password" placeholder="הכנס GitHub Token">
 <input id="owner" value="guyk217" placeholder="שם משתמש">
 <input id="repo" value="Connections-Game" placeholder="שם ריפו">
 <input id="path" value="levels.json" placeholder="נתיב לקובץ">
-<button onclick="runTest()">🚀 הפעל בדיקה</button>
 
+<textarea id="newContent" rows="8">
+[
+  { "title": "שלב בדיקה", "words": ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","כ","ל","מ","נ","ס","ע"],
+    "groups": { "אותיות": ["א","ב","ג","ד"], "עוד": ["ה","ו","ז","ח"], "ועוד": ["ט","י","כ","ל"], "וסוף": ["מ","נ","ס","ע"] },
+    "colors": {}, "hintPair": ["א","ב"]
+  }
+]
+</textarea>
+
+<button onclick="runTest()">🚀 הפעל בדיקה</button>
 <pre id="log">⬅️ יופיע כאן פלט</pre>
 
 <script>
 async function runTest() {
   const log = msg => document.getElementById('log').textContent += '\n' + msg;
-
   document.getElementById('log').textContent = '🚀 מתחיל בדיקה...';
 
   const token = document.getElementById('token').value.trim();
   const owner = document.getElementById('owner').value.trim();
   const repo = document.getElementById('repo').value.trim();
   const path = document.getElementById('path').value.trim();
+  const contentText = document.getElementById('newContent').value.trim();
 
   const apiURL = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
   try {
     log(`📥 שולח בקשת GET ל־${path}...`);
-
     const res = await fetch(apiURL, {
       headers: { Authorization: `token ${token}` }
     });
+    const data = await res.json();
 
-    if (!res.ok) {
-      log(`❌ שגיאת HTTP: ${res.status}`);
-      const errText = await res.text();
-      log(errText);
-      return;
+    const sha = data.sha;
+    log(`✅ קובץ נשלף, ממשיך לשמירה...`);
+
+    const b64content = btoa(unescape(encodeURIComponent(contentText)));
+
+    const putRes = await fetch(apiURL, {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: "Test update from browser",
+        content: b64content,
+        sha: sha
+      })
+    });
+
+    if (putRes.ok) {
+      log("✅ שמירה הצליחה!");
+    } else {
+      log(`❌ שמירה נכשלה!`);
+      const err = await putRes.text();
+      log(err);
     }
 
-    const data = await res.json();
-    const content = atob(data.content);
-    log(`✅ קובץ נשלף בהצלחה!`);
-    log(`📄 תוכן:\n${content}`);
   } catch (e) {
     log(`💥 שגיאת JavaScript:\n${e}`);
   }
