@@ -1,7 +1,7 @@
 # Connections-Game
 Connections game
 
-## Play -
+## Play
 play rhe game by levels created
 
 ## Edit & create levels 
