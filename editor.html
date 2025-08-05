@@ -1,4 +1,3 @@
-<!-- editor.html -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -22,7 +21,7 @@
     .centered {
       text-align: center;
     }
-    .login, .menu, .editor, .hint-selection {
+    .login, .menu, .editor, .hint-selection, .level-list {
       display: none;
     }
     .visible {
@@ -34,23 +33,6 @@
       width: 100%;
       margin: 5px 0 15px;
       box-sizing: border-box;
-    }
-    .level-entry {
-      background: white;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    .group-block {
-      border-top: 1px solid #ccc;
-      margin-top: 15px;
-      padding-top: 10px;
-    }
-    .group-words input {
-      display: inline-block;
-      width: 23%;
-      margin: 1%;
     }
     .btn {
       background: #333;
@@ -75,6 +57,23 @@
     }
     .tile.selected {
       background: #cce5ff;
+    }
+    .group-block {
+      border-top: 1px solid #ccc;
+      margin-top: 15px;
+      padding-top: 10px;
+    }
+    .group-words input {
+      display: inline-block;
+      width: 23%;
+      margin: 1%;
+    }
+    .level-entry {
+      background: white;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
     }
     #colorModal {
       position: fixed;
@@ -104,8 +103,14 @@
 
 <div class="menu" id="menu">
   <h1>בחר פעולה</h1>
-  <button class="btn" onclick="loadLevels()">📂 ערוך/מחק שלב</button>
+  <button class="btn" onclick="showLevelList()">📂 ערוך/מחק שלב</button>
   <button class="btn" onclick="createNewLevel()">➕ צור שלב חדש</button>
+</div>
+
+<div class="level-list" id="levelList">
+  <h1>רשימת שלבים</h1>
+  <div id="levelItems"></div>
+  <button class="btn" onclick="backToMenu()">חזור</button>
 </div>
 
 <div class="editor" id="editor">
@@ -138,7 +143,7 @@ let currentLevel = null;
 let selectedHint = [];
 let colorTargetGroup = '';
 
-async function enterToken() {
+function enterToken() {
   token = document.getElementById('tokenInput').value.trim();
   if (!token) return alert("יש להזין טוקן");
   document.getElementById('login').classList.remove('visible');
@@ -146,8 +151,7 @@ async function enterToken() {
 }
 
 function backToMenu() {
-  document.getElementById('editor').classList.remove('visible');
-  document.getElementById('hintSelection').classList.remove('visible');
+  document.querySelectorAll('.editor, .hint-selection, .level-list').forEach(div => div.classList.remove('visible'));
   document.getElementById('menu').classList.add('visible');
 }
 
@@ -279,47 +283,58 @@ async function uploadToGitHub(data) {
   const b64 = btoa(unescape(encodeURIComponent(content)));
   const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
 
-  try {
-    const getRes = await fetch(apiUrl, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const { sha } = await getRes.json();
+  let getRes = await fetch(apiUrl, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  let sha = (await getRes.json()).sha;
 
-    const putRes = await fetch(apiUrl, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        message: "Update levels",
-        content: b64,
-        sha
-      })
-    });
+  await fetch(apiUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      message: "Update levels",
+      content: b64,
+      sha
+    })
+  });
 
-    if (!putRes.ok) {
-      const err = await putRes.json();
-      throw new Error(err.message || "GitHub error");
-    }
-
-    alert("נשמר בהצלחה!");
-    location.reload();
-  } catch (err) {
-    alert("שגיאה בשמירה: " + err.message);
-  }
+  alert("נשמר בהצלחה!");
+  location.reload();
 }
 
-async function loadLevels() {
-  let res = await fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json");
+async function showLevelList() {
+  const res = await fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json");
   levels = await res.json();
-  let list = prompt("בחר שלב לעריכה:\n" + levels.map((l, i) => `${i+1}. ${l.title}`).join("\n"));
-  let idx = parseInt(list) - 1;
-  if (idx >= 0 && levels[idx]) {
-    editingIndex = idx;
-    currentLevel = JSON.parse(JSON.stringify(levels[idx]));
-    renderEditor();
-  }
+  const container = document.getElementById("levelItems");
+  container.innerHTML = "";
+  levels.forEach((lvl, i) => {
+    const div = document.createElement("div");
+    div.className = "level-entry";
+    div.innerHTML = `
+      <strong>${lvl.title}</strong><br>
+      <button class="btn" onclick="editLevel(${i})">✏️ ערוך</button>
+      <button class="btn" onclick="deleteLevel(${i})">🗑️ מחק</button>
+    `;
+    container.appendChild(div);
+  });
+  document.getElementById("menu").classList.remove("visible");
+  document.getElementById("levelList").classList.add("visible");
+}
+
+function editLevel(index) {
+  editingIndex = index;
+  currentLevel = JSON.parse(JSON.stringify(levels[index]));
+  renderEditor();
+  document.getElementById("levelList").classList.remove("visible");
+}
+
+async function deleteLevel(index) {
+  if (!confirm(`למחוק את "${levels[index].title}"?`)) return;
+  levels.splice(index, 1);
+  await uploadToGitHub(levels);
 }
 </script>
 </body>
