@@ -1,63 +1,49 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <title>בדיקת חיבור ל־levels.json</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <title>בדיקת GitHub Token</title>
   <style>
-    body { font-family: system-ui, sans-serif; padding: 20px; background: #f2f2f2; text-align: right; direction: rtl; }
-    h1 { font-size: 24px; margin-bottom: 20px; }
-    textarea { width: 100%; height: 300px; font-family: monospace; font-size: 14px; direction: ltr; }
-    input, button { padding: 10px; font-size: 16px; width: 100%; margin-bottom: 10px; }
-    .btn { background: #333; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    body { font-family: sans-serif; direction: rtl; padding: 20px; background: #f2f2f2; }
+    textarea { width: 100%; height: 150px; font-family: monospace; }
+    button { font-size: 18px; padding: 10px 20px; margin-top: 10px; }
   </style>
 </head>
 <body>
-  <h1>🔍 בדיקת גישה ל־levels.json</h1>
-  <input type="password" id="token" placeholder="הכנס טוקן GitHub כאן" />
-  <button class="btn" onclick="runTest()">התחל בדיקה</button>
+  <h2>🔍 בדיקת Token וקריאה ל־levels.json</h2>
+  <p>הכנס את הטוקן שלך:</p>
+  <input type="password" id="token" placeholder="github_pat_..." style="width:100%; font-size: 18px;">
+  <button onclick="runTest()">🚀 הפעל בדיקה</button>
+  <h3>📋 תוצאה:</h3>
   <textarea id="output" readonly></textarea>
 
   <script>
     async function runTest() {
-      const token = document.getElementById("token").value.trim();
-      const log = (msg) => {
-        const out = document.getElementById("output");
-        out.value += msg + "\n";
-        out.scrollTop = out.scrollHeight;
-      };
-
-      document.getElementById("output").value = "";
-      if (!token) return log("❌ לא הוזן טוקן");
-
-      log("🚀 מתחיל בדיקה...");
-      log("📥 מבצע GET ל־levels.json...");
+      const token = document.getElementById('token').value.trim();
+      const output = document.getElementById('output');
+      output.value = "🚀 מתחיל בדיקה...\n";
 
       const url = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
 
       try {
+        output.value += `📥 שולח בקשת GET ל־levels.json...\n`;
+
         const res = await fetch(url, {
-          headers: {
-            Authorization: `token ${token}`,
-            Accept: "application/vnd.github.v3+json"
-          }
+          headers: { Authorization: `token ${token}` }
         });
 
         if (!res.ok) {
-          log(`❌ שגיאה: ${res.status} ${res.statusText}`);
-          const err = await res.json();
-          if (err.message) log("🧾 הודעת שגיאה: " + err.message);
+          const errorData = await res.json();
+          output.value += `❌ שגיאת HTTP: ${res.status}\n`;
+          output.value += `📄 הודעת שגיאה: ${errorData.message || "לא נמסרה"}\n`;
           return;
         }
 
         const json = await res.json();
-        log("✅ קובץ אותר בהצלחה!");
-        log("🔢 SHA: " + json.sha);
-        log("📦 תוכן (base64):");
-        log(json.content.substring(0, 200) + "...");
-      } catch (e) {
-        log("💥 שגיאת JavaScript כללית:");
-        log(e.message || e.toString());
+        output.value += `✅ הצלחה! התקבל תוכן (sha): ${json.sha || "לא נמצא sha"}\n`;
+      } catch (err) {
+        output.value += `💥 שגיאת JavaScript:\n${err.name}: ${err.message}\n\n`;
+        if (err.stack) output.value += `🧠 Stack:\n${err.stack}`;
       }
     }
   </script>
