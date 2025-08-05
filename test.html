@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>בדיקת חיבור GitHub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: monospace;
+      background: #f2f2f2;
+      padding: 20px;
+      direction: rtl;
+    }
+    textarea {
+      width: 100%;
+      height: 400px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    input, button {
+      font-size: 16px;
+      padding: 6px;
+      margin: 10px 0;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<h2>בדיקת חיבור ל־GitHub</h2>
+<input type="password" id="token" placeholder="הכנס טוקן GitHub כאן">
+<button onclick="runTest()">התחל בדיקה</button>
+
+<textarea id="output" readonly></textarea>
+
+<script>
+async function runTest() {
+  const output = document.getElementById('output');
+  const token = document.getElementById('token').value.trim();
+  const repo = "guyk217/Connections-Game";
+  const file = "levels.json";
+  const url = `https://api.github.com/repos/${repo}/contents/${file}`;
+
+  function log(msg) {
+    output.value += msg + "\n";
+  }
+
+  output.value = "מתחיל בדיקה...\n";
+
+  try {
+    log("📥 מבצע GET ל־levels.json...");
+    const getRes = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const getData = await getRes.json();
+
+    if (getRes.status !== 200) {
+      log("❌ שגיאת קריאה מהקובץ:");
+      log(JSON.stringify(getData, null, 2));
+      return;
+    }
+
+    const sha = getData.sha;
+    log("✅ קריאת הקובץ הצליחה!");
+    log("SHA: " + sha);
+
+    log("\n📤 מנסה לבצע PUT (שכתוב הקובץ עם אותו תוכן)...");
+
+    const putRes = await fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: "בדיקת כתיבה - אין שינוי בתוכן",
+        content: getData.content,
+        sha: sha
+      })
+    });
+
+    const putData = await putRes.json();
+    if (putRes.status === 200 || putRes.status === 201) {
+      log("✅ כתיבה הצליחה!");
+      log(JSON.stringify(putData, null, 2));
+    } else {
+      log("❌ שגיאת PUT:");
+      log(JSON.stringify(putData, null, 2));
+    }
+
+  } catch (err) {
+    log("❌ שגיאת JavaScript:");
+    log(err.message || err);
+  }
+}
+</script>
+
+</body>
+</html>
