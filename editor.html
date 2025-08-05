@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>ניהול שלבים - מה הקשר?</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .level {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .group {
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+    label {
+      display: block;
+      margin: 6px 0 2px;
+      font-weight: bold;
+      color: #333;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button.delete {
+      background: #dc3545;
+      margin-right: 10px;
+    }
+    .actions {
+      margin-top: 10px;
+      text-align: left;
+    }
+    .back-button {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #333;
+    }
+    .token {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🛠️ ניהול שלבים</h1>
+  <button class="back-button" onclick="location.href='index.html'">🔙 חזור</button>
+
+  <div class="token">
+    <label>הכנס טוקן GitHub:</label>
+    <input id="token-input" type="password" placeholder="ghp_..." />
+    <button onclick="setToken()">✅ התחבר</button>
+  </div>
+
+  <div id="levels"></div>
+  <button onclick="addLevel()">➕ הוסף שלב חדש</button>
+
+  <script>
+    const repo = "guyk217/Connections-Game";
+    const filePath = "levels.json";
+    let token = "";
+    let levels = [];
+
+    function setToken() {
+      const input = document.getElementById("token-input").value.trim();
+      if (!input) return alert("נא להזין טוקן");
+      token = input;
+      loadLevels();
+    }
+
+    async function loadLevels() {
+      const res = await fetch(`https://raw.githubusercontent.com/${repo}/main/${filePath}`);
+      levels = await res.json();
+      renderLevels();
+    }
+
+    function renderLevels() {
+      const container = document.getElementById("levels");
+      container.innerHTML = "";
+      levels.forEach((level, index) => {
+        const div = document.createElement("div");
+        div.className = "level";
+        div.innerHTML = `
+          <label>שם השלב:</label>
+          <input value="${level.title}" onchange="levels[${index}].title=this.value">
+          
+          <label>רמז - מונח 1:</label>
+          <input value="${level.hintPair?.[0] || ""}" onchange="levels[${index}].hintPair[0]=this.value">
+          
+          <label>רמז - מונח 2:</label>
+          <input value="${level.hintPair?.[1] || ""}" onchange="levels[${index}].hintPair[1]=this.value">
+          
+          ${Object.entries(level.groups).map(([group, words], gi) => `
+            <div class="group">
+              <label>שם קבוצה ${gi+1}:</label>
+              <input value="${group}" onchange="renameGroup(${index}, '${group}', this.value)">
+              
+              ${words.map((word, wi) => `
+                <label>מילה ${wi+1}:</label>
+                <input value="${word}" onchange="levels[${index}].groups['${group}'][${wi}]=this.value">
+              `).join('')}
+
+              <label>צבע קבוצה:</label>
+              <input value="${level.colors?.[group] || ""}" onchange="levels[${index}].colors['${group}']=this.value">
+            </div>
+          `).join('')}
+
+          <div class="actions">
+            <button onclick="saveLevels()">💾 שמור שלב</button>
+            <button class="delete" onclick="deleteLevel(${index})">🗑️ מחק שלב</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renameGroup(levelIdx, oldName, newName) {
+      if (!newName || oldName === newName) return;
+      const g = levels[levelIdx].groups;
+      const c = levels[levelIdx].colors;
+      g[newName] = g[oldName];
+      delete g[oldName];
+      if (c && c[oldName]) {
+        c[newName] = c[oldName];
+        delete c[oldName];
+      }
+      renderLevels();
+    }
+
+    function addLevel() {
+      const newLevel = {
+        title: "שלב חדש",
+        words: [],
+        groups: {
+          "קבוצה 1": ["", "", "", ""],
+          "קבוצה 2": ["", "", "", ""],
+          "קבוצה 3": ["", "", "", ""],
+          "קבוצה 4": ["", "", "", ""]
+        },
+        colors: {
+          "קבוצה 1": "",
+          "קבוצה 2": "",
+          "קבוצה 3": "",
+          "קבוצה 4": ""
+        },
+        hintPair: ["", ""]
+      };
+      newLevel.words = Object.values(newLevel.groups).flat();
+      levels.push(newLevel);
+      renderLevels();
+    }
+
+    async function deleteLevel(index) {
+      if (!confirm("למחוק את השלב?")) return;
+      levels.splice(index, 1);
+      await saveLevels();
+    }
+
+    async function saveLevels() {
+      levels.forEach(l => l.words = Object.values(l.groups).flat());
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(levels, null, 2))));
+      const getSha = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`);
+      const sha = (await getSha.json()).sha;
+
+      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: "Update levels",
+          content,
+          sha
+        })
+      });
+
+      if (res.ok) {
+        alert("נשמר בהצלחה!");
+      } else {
+        alert("שגיאה בשמירה 😢");
+        console.error(await res.text());
+      }
+    }
+  </script>
+</body>
+</html>
