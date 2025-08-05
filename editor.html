@@ -1,301 +1,294 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html dir="rtl" lang="he">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🔧 עריכת שלבים</title>
+  <title>ניהול שלבים</title>
   <style>
     body {
       font-family: sans-serif;
-      background: #f7f7f7;
-      text-align: center;
+      background: #f9f9f9;
+      margin: 0;
       padding: 20px;
+      text-align: center;
+      direction: rtl;
     }
     h1 {
-      font-size: 26px;
+      font-size: 24px;
       margin-bottom: 20px;
     }
-    input, button, select {
-      font-size: 18px;
-      padding: 8px;
-      margin: 6px;
-    }
-    .level-row {
-      background: #fff;
-      margin: 6px auto;
+    input, button {
+      font-size: 16px;
       padding: 10px;
-      border: 1px solid #ccc;
-      width: 90%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      margin: 10px;
+      width: 80%;
+      max-width: 300px;
+      box-sizing: border-box;
     }
-    .editor-section {
+    .menu-btn {
+      width: 200px;
+      margin: 10px auto;
+      display: block;
+    }
+    .level-item {
       background: #fff;
-      padding: 20px;
-      margin-top: 20px;
-      width: 90%;
-      margin-left: auto;
-      margin-right: auto;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 5px 0;
+    }
+    .editable {
+      cursor: pointer;
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: #eee;
+      margin: 2px;
     }
     .group-box {
-      border-top: 1px solid #ddd;
+      border-top: 1px solid #ccc;
       padding-top: 10px;
       margin-top: 10px;
     }
-    .word-box {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .word {
-      border: 1px solid #ccc;
-      padding: 6px 12px;
-      border-radius: 6px;
+    .color-button {
+      background: #ddd;
+      padding: 5px 10px;
+      border: none;
       cursor: pointer;
     }
-    .selected {
-      background: #add8e6;
-    }
-    .hidden {
+    #color-picker-modal {
+      position: fixed;
+      top: 50%; right: 50%;
+      transform: translate(50%, -50%);
+      background: white;
+      border: 1px solid #aaa;
+      padding: 20px;
       display: none;
     }
   </style>
 </head>
 <body>
 
-<div id="login-section">
-  <h1>🔑 התחברות עם טוקן</h1>
-  <input type="password" id="token-input" placeholder="הכנס טוקן GitHub שלך">
-  <br>
-  <button onclick="loadLevels()">המשך</button>
-</div>
+  <div id="app"></div>
 
-<div id="menu-section" class="hidden">
-  <h1>📋 ניהול שלבים</h1>
-  <button onclick="startNewLevel()">➕ יצירת שלב חדש</button>
-  <div id="levels-list"></div>
-</div>
-
-<div id="editor-section" class="editor-section hidden"></div>
+  <div id="color-picker-modal">
+    <input type="color" id="color-picker-input" />
+    <button onclick="closeColorPicker()">בחר</button>
+  </div>
 
 <script>
-  let token = "";
-  let levels = [];
-  let selectedLevelIndex = null;
-  let editingLevel = null;
+let token = '';
+let levels = [];
+let selectedLevelIndex = null;
+let selectedColorTarget = null;
 
-  function show(id) {
-    document.querySelectorAll(".hidden").forEach(el => el.classList.add("hidden"));
-    document.getElementById(id).classList.remove("hidden");
+const repo = "guyk217/Connections-Game";
+const file = "levels.json";
+
+const app = document.getElementById("app");
+
+function showLogin() {
+  app.innerHTML = `
+    <h1>🔐 התחברות</h1>
+    <p>הכנס את טוקן ה-Git שלך לצורך הזדהות</p>
+    <input type="password" id="token-input" placeholder="ghp_..." />
+    <button onclick="handleLogin()">התחבר</button>
+  `;
+}
+
+async function handleLogin() {
+  token = document.getElementById("token-input").value.trim();
+  if (!token) return alert("חובה להזין טוקן");
+  try {
+    await loadLevels();
+    showMenu();
+  } catch (e) {
+    alert("שגיאה בטעינה: " + e.message);
   }
+}
 
-  async function loadLevels() {
-    token = document.getElementById("token-input").value.trim();
-    if (!token) return alert("נא להכניס טוקן");
+async function loadLevels() {
+  const url = `https://api.github.com/repos/${repo}/contents/${file}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `token ${token}` }
+  });
+  if (!res.ok) throw new Error("טעינת הקובץ נכשלה");
+  const json = await res.json();
+  const content = atob(json.content);
+  levels = JSON.parse(content);
+}
 
-    try {
-      const res = await fetch("https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json", {
-        headers: { Authorization: `token ${token}` }
-      });
-      const data = await res.json();
-      const content = atob(data.content);
-      levels = JSON.parse(content);
-      show("menu-section");
-      renderLevelList();
-    } catch (e) {
-      alert("שגיאה בטעינת השלבים: " + e.message);
+function showMenu() {
+  app.innerHTML = `<h1>ניהול שלבים</h1>`;
+  levels.forEach((lvl, i) => {
+    const div = document.createElement("div");
+    div.className = "level-item";
+    div.innerHTML = `
+      <b>${lvl.title}</b><br/>
+      <button onclick="editLevel(${i})">✏️ עריכה</button>
+      <button onclick="deleteLevel(${i})">🗑️ מחיקה</button>
+    `;
+    app.appendChild(div);
+  });
+  const addBtn = document.createElement("button");
+  addBtn.className = "menu-btn";
+  addBtn.innerText = "➕ צור שלב חדש";
+  addBtn.onclick = () => createLevel();
+  app.appendChild(addBtn);
+}
+
+function createLevel() {
+  const empty = {
+    title: "שלב חדש",
+    words: [],
+    groups: {
+      "קבוצה 1": ["", "", "", ""],
+      "קבוצה 2": ["", "", "", ""],
+      "קבוצה 3": ["", "", "", ""],
+      "קבוצה 4": ["", "", "", ""]
+    },
+    colors: {},
+    hintPair: []
+  };
+  levels.push(empty);
+  editLevel(levels.length - 1);
+}
+
+function editLevel(index) {
+  selectedLevelIndex = index;
+  const lvl = levels[index];
+  app.innerHTML = `<h1>עריכת שלב</h1>`;
+  const title = document.createElement("div");
+  title.innerHTML = `שם השלב: <span class="editable" onclick="editField(this, 'title')">${lvl.title}</span>`;
+  app.appendChild(title);
+
+  Object.entries(lvl.groups).forEach(([group, words], gi) => {
+    const box = document.createElement("div");
+    box.className = "group-box";
+    box.innerHTML = `
+      <div>שם קבוצה: <span class="editable" onclick="editGroupName(this, '${group}')">${group}</span></div>
+      <div>
+        מילים: ${words.map((w, wi) =>
+          `<span class="editable" onclick="editWord(this, '${group}', ${wi})">${w}</span>`
+        ).join("")}
+      </div>
+      <div>
+        <button class="color-button" onclick="openColorPicker('${group}')">בחר צבע</button>
+        <small> (לא חובה) </small>
+      </div>
+    `;
+    app.appendChild(box);
+  });
+
+  const hint = document.createElement("div");
+  hint.innerHTML = `
+    <div style="margin-top:20px;">
+      <button onclick="chooseHint()">🎯 בחר רמז</button><br/>
+      <div id="hint-display">רמז נוכחי: ${lvl.hintPair.join(" + ")}</div>
+    </div>
+  `;
+  app.appendChild(hint);
+
+  const save = document.createElement("button");
+  save.innerText = "💾 שמור";
+  save.onclick = saveLevel;
+  app.appendChild(save);
+
+  const back = document.createElement("button");
+  back.innerText = "↩️ חזור";
+  back.onclick = showMenu;
+  app.appendChild(back);
+}
+
+function editField(el, key) {
+  const newVal = prompt("ערוך:", el.innerText);
+  if (newVal !== null) {
+    el.innerText = newVal;
+    levels[selectedLevelIndex][key] = newVal;
+  }
+}
+
+function editWord(el, group, i) {
+  const newVal = prompt("מילה חדשה:", el.innerText);
+  if (newVal !== null) {
+    el.innerText = newVal;
+    levels[selectedLevelIndex].groups[group][i] = newVal;
+  }
+}
+
+function editGroupName(el, oldName) {
+  const newVal = prompt("שם קבוצה חדש:", oldName);
+  if (newVal && newVal !== oldName) {
+    const lvl = levels[selectedLevelIndex];
+    lvl.groups[newVal] = lvl.groups[oldName];
+    delete lvl.groups[oldName];
+    if (lvl.colors[oldName]) {
+      lvl.colors[newVal] = lvl.colors[oldName];
+      delete lvl.colors[oldName];
     }
-  }
-
-  function renderLevelList() {
-    const container = document.getElementById("levels-list");
-    container.innerHTML = "";
-    levels.forEach((lvl, idx) => {
-      const row = document.createElement("div");
-      row.className = "level-row";
-      row.innerHTML = `
-        <span>${lvl.title}</span>
-        <div>
-          <button onclick="editLevel(${idx})">✏️ עריכה</button>
-          <button onclick="deleteLevel(${idx})">🗑️ מחיקה</button>
-        </div>
-      `;
-      container.appendChild(row);
-    });
-  }
-
-  function startNewLevel() {
-    selectedLevelIndex = null;
-    editingLevel = {
-      title: "",
-      words: [],
-      groups: {
-        "קטגוריה 1": ["", "", "", ""],
-        "קטגוריה 2": ["", "", "", ""],
-        "קטגוריה 3": ["", "", "", ""],
-        "קטגוריה 4": ["", "", "", ""]
-      },
-      colors: {},
-      hintPair: []
-    };
-    renderEditor();
-  }
-
-  function editLevel(index) {
-    selectedLevelIndex = index;
-    editingLevel = JSON.parse(JSON.stringify(levels[index]));
-    renderEditor();
-  }
-
-  function deleteLevel(index) {
-    if (!confirm(`האם למחוק את "${levels[index].title}"?`)) return;
-    levels.splice(index, 1);
-    saveToGitHub();
-  }
-
-  function renderEditor() {
-    show("editor-section");
-    const container = document.getElementById("editor-section");
-    container.innerHTML = "";
-
-    const titleInput = document.createElement("input");
-    titleInput.value = editingLevel.title;
-    titleInput.placeholder = "שם השלב";
-    titleInput.oninput = () => editingLevel.title = titleInput.value;
-    container.appendChild(titleInput);
-
-    Object.entries(editingLevel.groups).forEach(([groupName, words], i) => {
-      const groupBox = document.createElement("div");
-      groupBox.className = "group-box";
-
-      const groupNameInput = document.createElement("input");
-      groupNameInput.value = groupName;
-      groupNameInput.placeholder = `שם קטגוריה ${i+1}`;
-      groupBox.appendChild(groupNameInput);
-
-      const colorButton = document.createElement("button");
-      colorButton.textContent = "בחר צבע (לא חובה)";
-      colorButton.onclick = () => {
-        const picked = prompt("הכנס קוד צבע (למשל: #FF0000):", editingLevel.colors[groupName] || "");
-        if (picked !== null) editingLevel.colors[groupName] = picked;
-      };
-      groupBox.appendChild(colorButton);
-
-      const wordsRow = document.createElement("div");
-      wordsRow.className = "word-box";
-      words.forEach((word, wi) => {
-        const input = document.createElement("input");
-        input.value = word;
-        input.placeholder = `מילה ${wi+1}`;
-        input.oninput = () => {
-          editingLevel.groups[groupName][wi] = input.value;
-          refreshWords();
-        };
-        wordsRow.appendChild(input);
-      });
-      groupBox.appendChild(wordsRow);
-      container.appendChild(groupBox);
-    });
-
-    const hintBtn = document.createElement("button");
-    hintBtn.textContent = "המשך → בחר רמז";
-    hintBtn.onclick = () => {
-      editingLevel.words = Object.values(editingLevel.groups).flat();
-      renderHintSelector();
-    };
-    container.appendChild(hintBtn);
-
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "↩️ חזור";
-    cancelBtn.onclick = () => show("menu-section");
-    container.appendChild(cancelBtn);
-  }
-
-  function refreshWords() {
-    editingLevel.words = Object.values(editingLevel.groups).flat();
-  }
-
-  function renderHintSelector() {
-    show("editor-section");
-    const container = document.getElementById("editor-section");
-    container.innerHTML = "<h2>בחר רמז (שתי מילים מאותה קטגוריה)</h2>";
-
-    let selectedHint = [...editingLevel.hintPair];
-
-    Object.entries(editingLevel.groups).forEach(([group, words]) => {
-      const row = document.createElement("div");
-      row.className = "word-box";
-      words.forEach(word => {
-        const w = document.createElement("div");
-        w.className = "word";
-        w.innerText = word;
-        if (selectedHint.includes(word)) w.classList.add("selected");
-        w.onclick = () => {
-          if (selectedHint.includes(word)) {
-            selectedHint = selectedHint.filter(w => w !== word);
-          } else if (selectedHint.length < 2) {
-            selectedHint.push(word);
-          }
-          renderHintSelector();
-        };
-        row.appendChild(w);
-      });
-      container.appendChild(row);
-    });
-
-    const saveBtn = document.createElement("button");
-    saveBtn.textContent = "💾 שמור";
-    saveBtn.disabled = selectedHint.length !== 2;
-    saveBtn.onclick = () => {
-      editingLevel.hintPair = selectedHint;
-      if (selectedLevelIndex != null) {
-        levels[selectedLevelIndex] = editingLevel;
-      } else {
-        levels.push(editingLevel);
-      }
-      saveToGitHub();
-    };
-    container.appendChild(saveBtn);
-
-    const backBtn = document.createElement("button");
-    backBtn.textContent = "↩️ חזור";
-    backBtn.onclick = renderEditor;
-    container.appendChild(backBtn);
-  }
-
-  async function saveToGitHub() {
-    const url = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
-    const getRes = await fetch(url, {
-      headers: { Authorization: `token ${token}` }
-    });
-    const getData = await getRes.json();
-
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(levels, null, 2))));
-
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: {
-        Authorization: `token ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        message: "Update levels.json",
-        content,
-        sha: getData.sha
-      })
-    });
-
-    if (res.ok) {
-      alert("נשמר בהצלחה!");
-      show("menu-section");
-      renderLevelList();
-    } else {
-      alert("שגיאה בשמירה.");
+    if (lvl.hintPair) {
+      lvl.hintPair = lvl.hintPair.map(w => lvl.groups[newVal].includes(w) ? w : w);
     }
+    editLevel(selectedLevelIndex);
   }
+}
+
+function openColorPicker(group) {
+  selectedColorTarget = group;
+  document.getElementById("color-picker-modal").style.display = "block";
+}
+
+function closeColorPicker() {
+  const color = document.getElementById("color-picker-input").value;
+  levels[selectedLevelIndex].colors[selectedColorTarget] = color;
+  document.getElementById("color-picker-modal").style.display = "none";
+}
+
+function chooseHint() {
+  const lvl = levels[selectedLevelIndex];
+  const words = Object.values(lvl.groups).flat();
+  const pick = prompt("בחר רמז (שתי מילים מופרדות בפסיק):", lvl.hintPair.join(","));
+  if (!pick) return;
+  const pair = pick.split(",").map(s => s.trim());
+  if (pair.length !== 2) return alert("יש להזין בדיוק שתי מילים");
+  const groupMatch = Object.values(lvl.groups).some(g => g.includes(pair[0]) && g.includes(pair[1]));
+  if (!groupMatch) return alert("שתי המילים חייבות להיות מאותה קבוצה");
+  lvl.hintPair = pair;
+  document.getElementById("hint-display").innerText = "רמז נוכחי: " + pair.join(" + ");
+}
+
+async function saveLevel() {
+  const lvl = levels[selectedLevelIndex];
+  lvl.words = Object.values(lvl.groups).flat();
+  const url = `https://api.github.com/repos/${repo}/contents/${file}`;
+  const getRes = await fetch(url, {
+    headers: { Authorization: `token ${token}` }
+  });
+  const json = await getRes.json();
+  const sha = json.sha;
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      message: "Updated level",
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(levels, null, 2)))),
+      sha: sha
+    })
+  });
+  if (!res.ok) return alert("שגיאה בשמירה");
+  alert("נשמר בהצלחה!");
+  showMenu();
+}
+
+async function deleteLevel(index) {
+  if (!confirm("האם למחוק את השלב?")) return;
+  levels.splice(index, 1);
+  await saveLevel();
+}
+showLogin();
 </script>
 </body>
 </html>
