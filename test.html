@@ -2,48 +2,29 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>בדיקת GitHub Token</title>
+  <title>בדיקת fetch פשוטה</title>
   <style>
-    body { font-family: sans-serif; direction: rtl; padding: 20px; background: #f2f2f2; }
-    textarea { width: 100%; height: 150px; font-family: monospace; }
-    button { font-size: 18px; padding: 10px 20px; margin-top: 10px; }
+    body { font-family: sans-serif; padding: 20px; direction: rtl; }
+    #output { white-space: pre-wrap; background: #f2f2f2; padding: 10px; border-radius: 6px; }
   </style>
 </head>
 <body>
-  <h2>🔍 בדיקת Token וקריאה ל־levels.json</h2>
-  <p>הכנס את הטוקן שלך:</p>
-  <input type="password" id="token" placeholder="github_pat_..." style="width:100%; font-size: 18px;">
-  <button onclick="runTest()">🚀 הפעל בדיקה</button>
-  <h3>📋 תוצאה:</h3>
-  <textarea id="output" readonly></textarea>
+  <h1>בדיקת fetch פשוטה (ללא טוקן)</h1>
+  <button onclick="runTest()">🚀 התחל בדיקה</button>
+  <div id="output">⬅️ תוצאות יופיעו כאן</div>
 
   <script>
     async function runTest() {
-      const token = document.getElementById('token').value.trim();
-      const output = document.getElementById('output');
-      output.value = "🚀 מתחיל בדיקה...\n";
-
-      const url = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
-
+      document.getElementById('output').textContent = '📥 שולח בקשת GET לקובץ JSON ציבורי...';
       try {
-        output.value += `📥 שולח בקשת GET ל־levels.json...\n`;
-
-        const res = await fetch(url, {
-          headers: { Authorization: `token ${token}` }
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          output.value += `❌ שגיאת HTTP: ${res.status}\n`;
-          output.value += `📄 הודעת שגיאה: ${errorData.message || "לא נמסרה"}\n`;
-          return;
-        }
-
+        const res = await fetch('https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json');
         const json = await res.json();
-        output.value += `✅ הצלחה! התקבל תוכן (sha): ${json.sha || "לא נמצא sha"}\n`;
-      } catch (err) {
-        output.value += `💥 שגיאת JavaScript:\n${err.name}: ${err.message}\n\n`;
-        if (err.stack) output.value += `🧠 Stack:\n${err.stack}`;
+        document.getElementById('output').textContent =
+          '✅ הצלחה!\n\n🔢 מספר שלבים שנמצאו: ' + json.length +
+          '\n\n📋 שמות שלבים:\n' + json.map(l => '- ' + l.title).join('\n');
+      } catch (e) {
+        document.getElementById('output').textContent =
+          '💥 שגיאה:\n' + e + '\n\n📄 אולי הקובץ לא קיים או לא נגיש?';
       }
     }
   </script>
