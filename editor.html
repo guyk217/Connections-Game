@@ -287,11 +287,18 @@ function saveLevel() {
     backToMenu();
   });
 }
+function toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
+}
 
 function uploadToGitHub(data, callback) {
   const content = JSON.stringify(data, null, 2);
-  const b64 = btoa(unescape(encodeURIComponent(content)));
+  const b64 = toBase64(content);
   const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
+
   fetch(apiUrl, {
     headers: { Authorization: `token ${token}` }
   })
@@ -312,7 +319,10 @@ function uploadToGitHub(data, callback) {
       });
     })
     .then(() => callback && callback())
-    .catch(err => alert("שגיאה בשמירה: " + err));
+    .catch(err => {
+      console.error("שגיאה בשמירה", err);
+      alert("שגיאה בשמירה: " + err.message);
+    });
 }
 </script>
 </body>
