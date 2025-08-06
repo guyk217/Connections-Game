@@ -60,14 +60,14 @@
       border-radius: 5px;
       text-align: center;
       cursor: pointer;
-    }
-    .tile.disabled {
-      background: #eee;
-      color: #aaa;
-      cursor: default;
+      transition: 0.3s;
     }
     .tile.selected {
       background: #cce5ff;
+    }
+    .tile.disabled {
+      opacity: 0.5;
+      pointer-events: none;
     }
     .level-entry {
       background: white;
@@ -131,7 +131,8 @@
   <a href="#" class="back-button" onclick="backToEditor()">➡️</a>
   <h1>בחר רמז (שתי מילים מאותה קבוצה)</h1>
   <div class="hint-grid" id="hintGrid"></div>
-  <button class="btn" id="saveBtn" onclick="saveLevel()">💾 שמור</button>
+  <button class="btn" id="saveBtn" onclick="saveLevel()" disabled>💾 שמור</button>
+  <button class="btn" onclick="copyJson()">📋 העתק JSON</button>
   <button class="btn" onclick="backToEditor()">חזור</button>
 </div>
 
@@ -141,13 +142,6 @@ let levels = [];
 let editingIndex = null;
 let currentLevel = null;
 let selectedHint = [];
-
-function encodeBase64Utf8(str) {
-  const utf8Bytes = new TextEncoder().encode(str);
-  let binary = '';
-  utf8Bytes.forEach(b => binary += String.fromCharCode(b));
-  return btoa(binary);
-}
 
 function enterToken() {
   token = document.getElementById('tokenInput').value.trim();
@@ -243,9 +237,7 @@ function goToHintSelection() {
       currentLevel.words.push(...words);
     }
   }
-  if (!currentLevel.words.includes(selectedHint[0]) || !currentLevel.words.includes(selectedHint[1])) {
-    selectedHint = [];
-  }
+  selectedHint = [...currentLevel.hintPair];
   renderHintGrid();
   document.getElementById('editor').classList.remove('visible');
   document.getElementById('hintSelection').classList.add('visible');
@@ -254,40 +246,27 @@ function goToHintSelection() {
 function renderHintGrid() {
   const grid = document.getElementById('hintGrid');
   grid.innerHTML = '';
-  let allowedGroup = null;
-
-  if (selectedHint.length > 0) {
-    for (const group of Object.values(currentLevel.groups)) {
-      if (group.includes(selectedHint[0])) {
-        allowedGroup = group;
-        break;
-      }
-    }
-  }
-
+  const hintGroup = Object.values(currentLevel.groups).find(group =>
+    group.includes(selectedHint[0])
+  );
   currentLevel.words.forEach(word => {
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.innerText = word;
-
-    const sameGroup = !allowedGroup || allowedGroup.includes(word);
-    if (!sameGroup) tile.classList.add('disabled');
     if (selectedHint.includes(word)) tile.classList.add('selected');
-
-    if (sameGroup) {
-      tile.onclick = () => {
-        if (selectedHint.includes(word)) {
-          selectedHint = selectedHint.filter(w => w !== word);
-        } else if (selectedHint.length < 2) {
-          selectedHint.push(word);
-        }
-        renderHintGrid();
-      };
-    }
-
+    if (selectedHint.length === 1 && !(hintGroup || []).includes(word))
+      tile.classList.add('disabled');
+    tile.onclick = () => {
+      if (selectedHint.includes(word)) {
+        selectedHint = selectedHint.filter(w => w !== word);
+      } else if (selectedHint.length < 2) {
+        selectedHint.push(word);
+      }
+      document.getElementById('saveBtn').disabled = !isValidHint();
+      renderHintGrid();
+    };
     grid.appendChild(tile);
   });
-
   document.getElementById('saveBtn').disabled = !isValidHint();
 }
 
@@ -321,12 +300,26 @@ function saveLevel() {
   });
 }
 
+function copyJson() {
+  currentLevel.hintPair = [...selectedHint];
+  const preview = [...levels];
+  if (editingIndex !== null) preview[editingIndex] = currentLevel;
+  else preview.push(currentLevel);
+  const content = JSON.stringify(preview, null, 2);
+  navigator.clipboard.writeText(content)
+    .then(() => alert("ה‑JSON הועתק ללוח"))
+    .catch(err => alert("שגיאה בהעתקה: " + err));
+}
+
+function encodeBase64Utf8(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+
 function uploadToGitHub(data, callback) {
   const content = JSON.stringify(data, null, 2);
-  navigator.clipboard.writeText(content).then(() => {
-    console.log("הועתק ללוח");
-  });
-
   const b64 = encodeBase64Utf8(content);
   const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
 
@@ -337,33 +330,23 @@ function uploadToGitHub(data, callback) {
     }
   })
     .then(res => {
-      if (!res.ok) return res.json().then(err => { throw new Error(err.message || JSON.stringify(err)); });
+      if (!res.ok) return res.json().then(e => { throw new Error(e.message || JSON.stringify(e)); });
       return res.json();
     })
-    .then(json => {
-      const sha = json.sha;
-      return fetch(apiUrl, {
-        method: "PUT",
-        headers: {
-          Authorization: `token ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/vnd.github+json"
-        },
-        body: JSON.stringify({
-          message: "Update levels.json",
-          content: b64,
-          sha
-        })
-      });
-    })
+    .then(json => fetch(apiUrl, {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/vnd.github+json"
+      },
+      body: JSON.stringify({ message: "Update levels.json", content: b64, sha: json.sha })
+    }))
     .then(res => {
-      if (!res.ok) return res.json().then(err => { throw new Error(err.message || JSON.stringify(err)); });
+      if (!res.ok) return res.json().then(e => { throw new Error(e.message || JSON.stringify(e)); });
       if (callback) callback();
     })
-    .catch(err => {
-      console.error("שגיאה בשמירה:", err);
-      alert("שגיאה בשמירה:\n" + (err.message || err));
-    });
+    .catch(err => { console.error("שגיאה בשמירה:", err); alert("שגיאה בשמירה:\n" + (err.message || err)); });
 }
 </script>
 </body>
