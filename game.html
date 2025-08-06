@@ -1,181 +1,284 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html dir="rtl" lang="he">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>מה הקשר?</title>
   <style>
     body {
-      font-family: system-ui, sans-serif;
+      font-family: sans-serif;
+      padding: 10px;
       background: #fff8dc;
-      margin: 0;
-      padding: 20px;
       text-align: center;
-      direction: rtl;
+      position: relative;
     }
-    h1 { font-size: 28px; margin-bottom: 10px; }
-    h2 { font-size: 20px; margin-bottom: 20px; color: #555; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin: 20px 0;
-    }
+    h2 { margin-bottom: 10px; }
+    .level { margin: 5px; padding: 10px; background: #fff; border: 1px solid #ccc; cursor: pointer; transition: 0.3s; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 15px; transition: all 0.5s ease; }
     .tile {
-      padding: 16px;
-      background: #eee;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 18px;
-      cursor: pointer;
-      user-select: none;
+      background: white; padding: 12px; border: 1px solid #999; cursor: pointer;
+      user-select: none; border-radius: 5px; transition: 0.4s ease;
     }
-    .tile.selected { background: #cce5ff; }
-    .tile.correct { background: #d4edda; }
-    .tile.removed { visibility: hidden; }
-    .hearts {
-      font-size: 24px;
-      margin-bottom: 15px;
+    .tile.selected { background: #ccc; }
+    .tile.removed { transform: translateY(-50px); opacity: 0; }
+    .tile.shake { animation: shake 0.3s; background: #fdd; }
+    .tile.error { background: #f8d7da; color: #721c24; }
+    .tile.success { background: #a8f0a5; animation: pop 0.4s ease; }
+    .tile.newly-formed { background: #d4edda; animation: mergeAnim 1.2s ease forwards; }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-3px); }
+      100% { transform: translateX(0); }
     }
-    .message {
-      font-size: 22px;
-      margin-top: 30px;
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
     }
-    .group-label {
-      font-weight: bold;
-      margin-top: 20px;
-      color: #333;
+    @keyframes mergeAnim {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); background: #c3e6cb; }
+      100% { transform: scale(1); opacity: 1; }
     }
-    .back-button {
-      position: fixed;
+    .group { margin: 10px 0; padding: 5px; font-weight: bold; border-radius: 4px; color: black; }
+    .controls { margin-top: 10px; }
+    button {
+      margin: 5px; padding: 8px 16px; font-size: 16px;
+      border-radius: 6px; border: none; background: #555; color: white;
+    }
+    .hearts { font-size: 18px; margin-top: 10px; }
+    .notice { margin-top: 10px; color: #333; font-weight: bold; }
+    #backBtn {
+      position: absolute;
       top: 10px;
       right: 10px;
-      font-size: 24px;
-      text-decoration: none;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 18px;
-      margin-top: 20px;
-      background: #333;
-      color: white;
+      background: none;
       border: none;
-      border-radius: 6px;
+      font-size: 24px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
-
-<a href="game.html" class="back-button">➡️</a>
-
-<h1 id="level-title">מה הקשר?</h1>
-<h2 id="level-difficulty"></h2>
-<div class="hearts" id="hearts"></div>
-<div class="grid" id="board"></div>
-<div class="message" id="message"></div>
-<div id="play-again-container"></div>
+<button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+<h2>בחרי שלב:</h2>
+<div id="level-list"></div>
 
 <script>
-let levels = [];
-let selectedCategory = sessionStorage.getItem("selectedCategory") || null;
-let selectedLevelIndex = sessionStorage.getItem("selectedLevel") || 0;
 let current = null;
 let selected = [];
+let hearts = 6;
 let found = {};
-let successWords = [];
 let removedWords = [];
-let hearts = 4;
+let shakingWords = [];
+let successWords = [];
+let noticeText = "";
+let noticeTimeout;
+const defaultColors = ["#A8D5BA", "#FFE066", "#FFB347", "#F49AC2"];
+let levels = [];
 
-fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json")
+fetch("levels.json")
   .then(res => res.json())
   .then(data => {
-    levels = data.filter(l => l.category === selectedCategory);
-    startLevel();
+    levels = data;
+    showLevels();
   });
 
-function startLevel() {
-  current = levels[selectedLevelIndex];
-  document.getElementById("level-title").textContent = current.title;
-  document.getElementById("level-difficulty").textContent = "רמת קושי: " + (current.difficulty || "לא ידוע");
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function showLevels() {
+  document.body.innerHTML = `
+    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+    <h2>בחרי שלב:</h2>
+    <div id='level-list'></div>`;
+  const container = document.getElementById("level-list");
+  levels.forEach((lvl, idx) => {
+    let div = document.createElement("div");
+    div.className = "level";
+    div.innerHTML = `<b>${lvl.title}</b><br><small>רמת קושי: ${lvl.difficulty || 'לא צוינה'}</small>`;
+    div.onclick = () => startLevel(idx);
+    container.appendChild(div);
+  });
+}
+
+function getColor(group, index) {
+  let c = current.colors?.[group];
+  if (!c || !c.trim()) {
+    return defaultColors[index % defaultColors.length];
+  }
+  return c;
+}
+
+function startLevel(index) {
+  current = JSON.parse(JSON.stringify(levels[index]));
+  let groupKeys = Object.keys(current.groups);
+  current.groupColorMap = {};
+  groupKeys.forEach((g, i) => {
+    current.groupColorMap[g] = getColor(g, i);
+  });
+  current.words = shuffle([...current.words]);
   selected = [];
   found = {};
-  successWords = [];
+  hearts = 6;
   removedWords = [];
-  hearts = 4;
+  shakingWords = [];
+  successWords = [];
+  noticeText = "";
   renderGame();
+}
+
+function isHintGroupFound() {
+  if (!current.hintPair || current.hintPair.length < 2) return false;
+  return Object.entries(current.groups).some(([group, arr]) =>
+    arr.includes(current.hintPair[0]) &&
+    arr.includes(current.hintPair[1]) &&
+    found[group]
+  );
 }
 
 function renderGame() {
-  const board = document.getElementById("board");
-  board.innerHTML = "";
-  document.getElementById("message").textContent = "";
-  document.getElementById("hearts").textContent = "🩷".repeat(hearts);
+  document.body.innerHTML = `
+    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+    <h2>${current.title}</h2>`;
+  
+  for (let group in found) {
+    let div = document.createElement("div");
+    div.className = "group";
+    div.style.background = current.groupColorMap[group];
+    div.innerText = group + ": " + found[group].join(", ");
+    document.body.appendChild(div);
+  }
 
+  let grid = document.createElement("div");
+  grid.className = "grid";
   current.words.forEach(word => {
-    const tile = document.createElement("div");
-    tile.className = "tile";
-    tile.textContent = word;
-    if (selected.includes(word)) tile.classList.add("selected");
-    if (successWords.includes(word)) tile.classList.add("correct");
-    if (removedWords.includes(word)) tile.classList.add("removed");
-    tile.onclick = () => handleSelect(word);
-    board.appendChild(tile);
+    let div = document.createElement("div");
+    div.className = "tile";
+    if (selected.includes(word)) div.classList.add("selected");
+    if (removedWords.includes(word)) div.classList.add("removed");
+    if (shakingWords.includes(word)) div.classList.add("shake");
+    if (successWords.includes(word)) div.classList.add("newly-formed");
+    div.innerText = word;
+    div.onclick = () => {
+      if (selected.includes(word)) {
+        selected = selected.filter(w => w !== word);
+      } else if (selected.length < 4) {
+        selected.push(word);
+      }
+      renderGame();
+    };
+    grid.appendChild(div);
   });
+  document.body.appendChild(grid);
 
-  for (const group in found) {
-    const label = document.createElement("div");
-    label.className = "group-label";
-    label.textContent = `✔️ ${group}`;
-    board.appendChild(label);
+  let controls = document.createElement("div");
+  controls.className = "controls";
+
+  let check = document.createElement("button");
+  check.innerText = "אישור";
+  check.onclick = handleCheck;
+  controls.appendChild(check);
+
+  let clear = document.createElement("button");
+  clear.innerText = "ניקוי";
+  clear.onclick = () => {
+    selected = [];
+    renderGame();
+  };
+  controls.appendChild(clear);
+
+  let hintBtn = document.createElement("button");
+  if (!current.hintPair || current.hintPair.length < 2 || isHintGroupFound()) {
+    hintBtn.innerText = "רמז לא זמין";
+    hintBtn.disabled = true;
+    hintBtn.style.opacity = 0.5;
+  } else {
+    hintBtn.innerText = "💡 רמז";
+    hintBtn.onclick = () => {
+      selected = [...current.hintPair];
+      renderGame();
+    };
   }
-}
+  controls.appendChild(hintBtn);
 
-function handleSelect(word) {
-  if (selected.includes(word)) {
-    selected = selected.filter(w => w !== word);
-  } else if (selected.length < 4) {
-    selected.push(word);
-  }
-  renderGame();
+  document.body.appendChild(controls);
 
-  if (selected.length === 4) {
-    setTimeout(handleCheck, 300);
+  let heartBar = document.createElement("div");
+  heartBar.className = "hearts";
+  heartBar.innerText = "🩷".repeat(hearts) + "🤍".repeat(6 - hearts);
+  document.body.appendChild(heartBar);
+
+  if (noticeText) {
+    let notice = document.createElement("div");
+    notice.className = "notice";
+    notice.innerText = noticeText;
+    document.body.appendChild(notice);
   }
 }
 
 function handleCheck() {
-  const match = Object.entries(current.groups).find(([group, words]) =>
-    words.every(w => selected.includes(w)) && !found[group]);
+  if (selected.length !== 4) return;
 
-  if (match) {
-    const [group, words] = match;
-    found[group] = [...words];
-    successWords = [...words];
-    selected = [];
-    setTimeout(() => {
-      removedWords.push(...words);
-      current.words = current.words.filter(w => !removedWords.includes(w));
-      successWords = [];
+  for (let group in current.groups) {
+    let target = current.groups[group];
+    let matches = selected.filter(w => target.includes(w));
+    if (matches.length === 4) {
+      found[group] = [...target];
+      successWords = [...target];
+      removedWords.push(...target);
+      selected = [];
       renderGame();
-
-      if (Object.keys(found).length === 4) {
-        setTimeout(() => showEndMessage(true), 500);
-      }
-    }, 800);
-  } else {
-    hearts--;
-    selected = [];
-    if (hearts === 0) {
-      simulateFailureReveal();
-    } else {
+      setTimeout(() => {
+        current.words = current.words.filter(w => !removedWords.includes(w));
+        removedWords = [];
+        successWords = [];
+        if (Object.keys(found).length === 4) {
+          setTimeout(() => showEndMessage(true), 1200);
+        } else {
+          renderGame();
+        }
+      }, 1000);
+      return;
+    } else if (matches.length === 3) {
+      hearts--;
+      shakingWords = selected.slice();
+      noticeText = "צדקת ב־3 מתוך 4. המשיכי לנסות.";
       renderGame();
+      clearTimeout(noticeTimeout);
+      noticeTimeout = setTimeout(() => {
+        shakingWords = [];
+        selected = [];
+        noticeText = "";
+        renderGame();
+      }, 1000);
+      return;
     }
+  }
+
+  hearts--;
+  shakingWords = selected.slice();
+  renderGame();
+  setTimeout(() => {
+    shakingWords = [];
+    selected = [];
+    renderGame();
+  }, 400);
+
+  if (hearts === 0) {
+    simulateFailureReveal();
   }
 }
 
 function simulateFailureReveal() {
-  const groups = Object.entries(current.groups).filter(([group]) => !found[group]);
+  const groups = Object.entries(current.groups).filter(([g]) => !found[g]);
   let i = 0;
   selected = [];
   successWords = [];
@@ -186,8 +289,7 @@ function simulateFailureReveal() {
       setTimeout(() => showEndMessage(false), 800);
       return;
     }
-
-    const [group, words] = groups[i++];
+    let [group, words] = groups[i++];
     found[group] = [...words];
     successWords = [...words];
     renderGame();
@@ -205,18 +307,10 @@ function simulateFailureReveal() {
 }
 
 function showEndMessage(success) {
-  const msg = document.getElementById("message");
-  const container = document.getElementById("play-again-container");
-  container.innerHTML = "";
-  if (success) {
-    msg.innerHTML = "כל הכבוד! 🎉 פתרת הכל";
-  } else {
-    msg.innerHTML = "לא נורא! 🙃 נגמרו הניחושים";
-  }
-  const btn = document.createElement("button");
-  btn.textContent = "שחקי שוב";
-  btn.onclick = () => location.href = "game.html";
-  container.appendChild(btn);
+  document.body.innerHTML = `
+    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+    <h2>${success ? "מעולה! 🎉 מצאת את כל הקבוצות!" : "לא נורא! 🙃 נגמרו הניחושים"}</h2>
+    <button onclick="showLevels()">שחקי שוב</button>`;
 }
 </script>
 </body>
