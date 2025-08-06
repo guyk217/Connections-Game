@@ -170,7 +170,7 @@ function renderGame() {
   document.body.innerHTML = `
     <button id="backBtn" onclick="showLevels()">➡️</button>
     <h2>${current.title}</h2>
-    <h4>${current.difficulty}</h4>`;
+    <h4>רמת קושי: ${current.difficulty}</h4>`;
 
   for (let group in found) {
     let div = document.createElement("div");
