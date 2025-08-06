@@ -16,16 +16,10 @@
     }
     h1 {
       font-size: 24px;
-      margin: 40px 0 20px;
+      margin-bottom: 20px;
       text-align: center;
     }
-    .header-back {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      font-size: 28px;
-      cursor: pointer;
-    }
+    .centered { text-align: center; }
     .login, .menu, .editor, .hint-selection, .level-list { display: none; }
     .visible { display: block; }
     input, select, button {
@@ -91,24 +85,32 @@
       border-radius: 6px;
       border: 1px solid #ccc;
     }
-    .difficulty {
-      font-size: 16px;
-      color: #555;
-      margin-top: -10px;
-      margin-bottom: 10px;
-      text-align: center;
+    .top-right {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 22px;
+      text-decoration: none;
+      background: none;
+      border: none;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-<div class="header-back" onclick="backToMenu()">➡️</div>
+<!-- כפתורי חזור -->
+<a class="top-right" id="backFromLogin" href="index.html" style="display:none;">➡️</a>
+<a class="top-right" id="backFromMenu" href="index.html" style="display:none;">➡️</a>
+<button class="top-right" id="backToMainMenu" style="display:none;" onclick="backToMenu()">➡️</button>
 
 <div class="login visible" id="login">
-  <div style="font-size: 48px; text-align:center;">🔐</div>
-  <h1>התחברות עם טוקן</h1>
-  <input type="password" id="tokenInput" placeholder="הכנס טוקן GitHub כאן">
-  <button class="btn" onclick="enterToken()">התחבר</button>
+  <div class="centered">
+    <div style="font-size: 48px;">🔐</div>
+    <h1>התחברות עם טוקן</h1>
+    <input type="password" id="tokenInput" placeholder="הכנס טוקן GitHub כאן">
+    <button class="btn" onclick="enterToken()">התחבר</button>
+  </div>
 </div>
 
 <div class="menu" id="menu">
@@ -149,18 +151,21 @@ let levels = [];
 let editingIndex = null;
 let currentLevel = null;
 let selectedHint = [];
-let colorTargetGroup = '';
 
 function enterToken() {
   token = document.getElementById('tokenInput').value.trim();
   if (!token) return alert("יש להזין טוקן");
   document.getElementById('login').classList.remove('visible');
   document.getElementById('menu').classList.add('visible');
+  document.getElementById('backFromLogin').style.display = 'none';
+  document.getElementById('backFromMenu').style.display = 'inline';
 }
 
 function showLevelList() {
-  hideAll();
+  document.getElementById('menu').classList.remove('visible');
   document.getElementById('levelList').classList.add('visible');
+  document.getElementById('backToMainMenu').style.display = 'inline';
+
   fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json")
     .then(res => res.json())
     .then(data => {
@@ -171,8 +176,7 @@ function showLevelList() {
         const div = document.createElement('div');
         div.className = 'level-entry';
         div.innerHTML = `
-          <b>${lvl.title}</b>
-          <div class="difficulty">רמת קושי: ${lvl.difficulty || 'לא צוינה'}</div>
+          <b>${lvl.title}</b><br>
           <button class="btn" onclick="editLevel(${i})">✏️ ערוך</button>
           <button class="btn" onclick="deleteLevel(${i})">🗑️ מחק</button>
         `;
@@ -181,21 +185,12 @@ function showLevelList() {
     });
 }
 
-function hideAll() {
-  document.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
-}
-
-function backToMenu() {
-  hideAll();
-  document.getElementById('menu').classList.add('visible');
-}
-
 function editLevel(i) {
   editingIndex = i;
   currentLevel = JSON.parse(JSON.stringify(levels[i]));
   selectedHint = [...currentLevel.hintPair];
   renderEditor();
-  hideAll();
+  document.getElementById('levelList').classList.remove('visible');
   document.getElementById('editor').classList.add('visible');
 }
 
@@ -213,8 +208,10 @@ function createNewLevel() {
   currentLevel = { title: "", words: [], groups: {}, colors: {}, hintPair: [] };
   selectedHint = [];
   renderEditor();
-  hideAll();
+  document.getElementById('menu').classList.remove('visible');
   document.getElementById('editor').classList.add('visible');
+  document.getElementById('backFromMenu').style.display = 'none';
+  document.getElementById('backToMainMenu').style.display = 'inline';
 }
 
 function renderEditor() {
@@ -232,26 +229,9 @@ function renderEditor() {
       <div class="group-words">
         ${words.map((w, j) => `<input id="group-${i}-word-${j}" value="${w}" placeholder="מילה ${j+1}">`).join('')}
       </div>
-      <button class="btn" onclick="openColorPicker(${i})">בחר צבע (לא חובה)</button>
     `;
     container.appendChild(block);
   }
-}
-
-function openColorPicker(i) {
-  const name = document.getElementById(`group-name-${i}`).value.trim();
-  if (!name) return alert("יש להזין שם קבוצה לפני בחירת צבע");
-  colorTargetGroup = name;
-  document.getElementById('colorModal').style.display = 'flex';
-}
-function closeColorModal() {
-  document.getElementById('colorModal').style.display = 'none';
-}
-function applyColor() {
-  const color = document.getElementById('colorPicker').value;
-  currentLevel.colors = currentLevel.colors || {};
-  currentLevel.colors[colorTargetGroup] = color;
-  closeColorModal();
 }
 
 function goToHintSelection() {
@@ -272,7 +252,7 @@ function goToHintSelection() {
   }
   selectedHint = [...currentLevel.hintPair];
   renderHintGrid();
-  hideAll();
+  document.getElementById('editor').classList.remove('visible');
   document.getElementById('hintSelection').classList.add('visible');
 }
 
@@ -302,6 +282,13 @@ function isValidHint() {
   return Object.values(currentLevel.groups).some(group =>
     group.includes(selectedHint[0]) && group.includes(selectedHint[1])
   );
+}
+
+function backToMenu() {
+  document.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
+  document.getElementById('menu').classList.add('visible');
+  document.getElementById('backFromMenu').style.display = 'inline';
+  document.getElementById('backToMainMenu').style.display = 'none';
 }
 
 function saveLevel() {
