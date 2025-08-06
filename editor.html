@@ -287,43 +287,56 @@ function saveLevel() {
     backToMenu();
   });
 }
-function toBase64(str) {
-  const bytes = new TextEncoder().encode(str);
+
+function encodeBase64Utf8(str) {
+  const utf8Bytes = new TextEncoder().encode(str);
   let binary = '';
-  bytes.forEach(b => binary += String.fromCharCode(b));
+  utf8Bytes.forEach(b => binary += String.fromCharCode(b));
   return btoa(binary);
 }
 
 function uploadToGitHub(data, callback) {
-  const content = JSON.stringify(data, null, 2);
-  const b64 = toBase64(content);
+  const content = JSON.stringify(data, null, 2); // יצירת תוכן JSON יפה לקריאה
+  const b64 = encodeBase64Utf8(content);         // המרה ל-Base64 תקני
+
   const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
 
+  // שלב 1: שליפת ה-SHA הקיים
   fetch(apiUrl, {
-    headers: { Authorization: `token ${token}` }
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: "application/vnd.github+json"
+    }
   })
-    .then(res => res.json())
+    .then(res => res.ok ? res.json() : Promise.reject(res))
     .then(json => {
       const sha = json.sha;
+
+      // שלב 2: שליחת PUT עם התוכן החדש
       return fetch(apiUrl, {
         method: "PUT",
         headers: {
           Authorization: `token ${token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          Accept: "application/vnd.github+json"
         },
         body: JSON.stringify({
-          message: "Update levels",
+          message: "Update levels.json",
           content: b64,
           sha
         })
       });
     })
-    .then(() => callback && callback())
+    .then(res => {
+      if (!res.ok) return res.json().then(err => { throw new Error(JSON.stringify(err)); });
+      if (callback) callback();
+    })
     .catch(err => {
-      console.error("שגיאה בשמירה", err);
-      alert("שגיאה בשמירה: " + err.message);
+      console.error("שגיאה בשמירה:", err);
+      alert("שגיאה בשמירה:\n" + (err.message || err));
     });
 }
+
 </script>
 </body>
 </html>
