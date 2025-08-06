@@ -1,3 +1,4 @@
+<!-- editor.html -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -19,7 +20,9 @@
       text-align: center;
     }
     .centered { text-align: center; }
-    .login, .menu, .editor, .hint-selection, .level-list { display: none; }
+    .login, .menu, .category-select, .level-list, .editor, .hint-selection {
+      display: none;
+    }
     .visible { display: block; }
     input, select, button {
       font-size: 18px;
@@ -96,21 +99,31 @@
 <div class="menu" id="menu">
   <a href="index.html" class="back-button">➡️</a>
   <h1>בחר פעולה</h1>
-  <button class="btn" onclick="showLevelList()">📂 ערוך/מחק שלב</button>
+  <button class="btn" onclick="showCategorySelect()">📂 ערוך/מחק שלב</button>
   <button class="btn" onclick="createNewLevel()">➕ צור שלב חדש</button>
 </div>
 
-<div class="level-list" id="levelList">
+<div class="category-select" id="categorySelect">
   <a href="#" class="back-button" onclick="backToMenu()">➡️</a>
+  <h1>בחר קטגוריה</h1>
+  <div id="categoryList"></div>
+  <button class="btn" onclick="backToMenu()">חזור</button>
+</div>
+
+<div class="level-list" id="levelList">
+  <a href="#" class="back-button" onclick="backToCategory()">➡️</a>
   <h1>רשימת שלבים</h1>
   <div id="levelsContainer"></div>
-  <button class="btn" onclick="backToMenu()">חזור</button>
+  <button class="btn" onclick="backToCategory()">חזור</button>
 </div>
 
 <div class="editor" id="editor">
   <a href="#" class="back-button" onclick="backToMenu()">➡️</a>
   <h1 id="editorTitle">עריכת שלב</h1>
   <input id="levelTitle" placeholder="שם השלב">
+  <label for="categorySelectInput">קטגוריה:</label>
+  <select id="categorySelectInput"></select>
+  <input id="newCategoryInput" placeholder="או כתוב קטגוריה חדשה">
   <label for="difficulty">רמת קושי:</label>
   <select id="difficulty">
     <option value="קל">קל</option>
@@ -136,6 +149,7 @@ let levels = [];
 let editingIndex = null;
 let currentLevel = null;
 let selectedHint = [];
+let selectedCategory = null;
 
 function enterToken() {
   token = document.getElementById('tokenInput').value.trim();
@@ -144,26 +158,53 @@ function enterToken() {
   document.getElementById('menu').classList.add('visible');
 }
 
-function showLevelList() {
-  document.getElementById('menu').classList.remove('visible');
-  document.getElementById('levelList').classList.add('visible');
+function showCategorySelect() {
   fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json")
     .then(res => res.json())
     .then(data => {
       levels = data;
-      const container = document.getElementById('levelsContainer');
-      container.innerHTML = '';
-      levels.forEach((lvl, i) => {
-        const div = document.createElement('div');
-        div.className = 'level-entry';
-        div.innerHTML = `
-          <b>${lvl.title}</b><br>
-          <button class="btn" onclick="editLevel(${i})">✏️ ערוך</button>
-          <button class="btn" onclick="deleteLevel(${i})">🗑️ מחק</button>
-        `;
-        container.appendChild(div);
+      const categories = [...new Set(levels.map(l => l.category || "ללא קטגוריה"))];
+      const list = document.getElementById("categoryList");
+      list.innerHTML = "";
+      categories.forEach(cat => {
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.innerText = cat;
+        btn.onclick = () => showLevelList(cat);
+        list.appendChild(btn);
       });
+      document.getElementById('menu').classList.remove('visible');
+      document.getElementById('categorySelect').classList.add('visible');
     });
+}
+
+function showLevelList(category) {
+  selectedCategory = category;
+  document.getElementById('categorySelect').classList.remove('visible');
+  document.getElementById('levelList').classList.add('visible');
+  const container = document.getElementById('levelsContainer');
+  container.innerHTML = '';
+  levels
+    .filter(l => (l.category || "ללא קטגוריה") === category)
+    .forEach((lvl, i) => {
+      const div = document.createElement('div');
+      div.className = 'level-entry';
+      div.innerHTML = `
+        <b>${lvl.title}</b><br>
+        <button class="btn" onclick="editLevel(${i})">✏️ ערוך</button>
+        <button class="btn" onclick="deleteLevel(${i})">🗑️ מחק</button>
+      `;
+      container.appendChild(div);
+    });
+}
+
+function createNewLevel() {
+  editingIndex = null;
+  currentLevel = { title: "", words: [], groups: {}, hintPair: [], difficulty: "קל", category: "" };
+  selectedHint = [];
+  renderEditor();
+  document.getElementById('menu').classList.remove('visible');
+  document.getElementById('editor').classList.add('visible');
 }
 
 function editLevel(i) {
@@ -176,26 +217,23 @@ function editLevel(i) {
 }
 
 function deleteLevel(i) {
-  if (!confirm("האם אתה בטוח שברצונך למחוק שלב זה?")) return;
+  if (!confirm("האם למחוק שלב זה?")) return;
   levels.splice(i, 1);
   uploadToGitHub(levels, () => {
-    alert("נמחק בהצלחה!");
-    showLevelList();
+    alert("נמחק");
+    showLevelList(selectedCategory);
   });
-}
-
-function createNewLevel() {
-  editingIndex = null;
-  currentLevel = { title: "", words: [], groups: {}, hintPair: [], difficulty: "קל" };
-  selectedHint = [];
-  renderEditor();
-  document.getElementById('menu').classList.remove('visible');
-  document.getElementById('editor').classList.add('visible');
 }
 
 function renderEditor() {
   document.getElementById('levelTitle').value = currentLevel.title || "";
   document.getElementById('difficulty').value = currentLevel.difficulty || "קל";
+  const select = document.getElementById('categorySelectInput');
+  const categories = [...new Set(levels.map(l => l.category || "ללא קטגוריה"))];
+  select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  select.value = currentLevel.category || "";
+  document.getElementById('newCategoryInput').value = "";
+
   const container = document.getElementById('groupsContainer');
   container.innerHTML = '';
   const keys = Object.keys(currentLevel.groups);
@@ -217,6 +255,10 @@ function renderEditor() {
 function goToHintSelection() {
   currentLevel.title = document.getElementById('levelTitle').value.trim();
   currentLevel.difficulty = document.getElementById('difficulty').value;
+  const existingCat = document.getElementById('categorySelectInput').value;
+  const newCat = document.getElementById('newCategoryInput').value.trim();
+  currentLevel.category = newCat || existingCat;
+
   currentLevel.groups = {};
   currentLevel.words = [];
   for (let i = 0; i < 4; i++) {
@@ -270,6 +312,11 @@ function backToMenu() {
   document.getElementById('menu').classList.add('visible');
 }
 
+function backToCategory() {
+  document.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
+  document.getElementById('categorySelect').classList.add('visible');
+}
+
 function backToEditor() {
   document.getElementById('hintSelection').classList.remove('visible');
   document.getElementById('editor').classList.add('visible');
@@ -283,7 +330,7 @@ function saveLevel() {
     levels.push(currentLevel);
   }
   uploadToGitHub(levels, () => {
-    alert("נשמר בהצלחה!");
+    alert("נשמר!");
     backToMenu();
   });
 }
