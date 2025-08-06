@@ -1,26 +1,32 @@
+<!-- editor.html -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>עורך שלבים</title>
+  <title>ניהול שלבים</title>
   <style>
     body {
+      font-family: system-ui, sans-serif;
       background: #fff8dc;
-      font-family: sans-serif;
       margin: 0;
       padding: 20px;
+      direction: rtl;
       text-align: right;
     }
     h1 {
       font-size: 24px;
+      margin-bottom: 20px;
       text-align: center;
     }
-    input, button {
+    .centered { text-align: center; }
+    .login, .menu, .editor, .hint-selection, .level-list { display: none; }
+    .visible { display: block; }
+    input, select, button {
       font-size: 18px;
       padding: 8px;
-      margin: 5px 0;
       width: 100%;
+      margin: 5px 0 15px;
       box-sizing: border-box;
     }
     .btn {
@@ -28,44 +34,31 @@
       color: white;
       border: none;
       border-radius: 6px;
-      padding: 10px;
-      margin: 10px auto;
-      display: block;
-      width: 200px;
-      text-align: center;
       cursor: pointer;
-    }
-    .level-entry {
-      background: white;
       padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
+      margin-top: 10px;
     }
     .group-block {
       border-top: 1px solid #ccc;
-      margin-top: 20px;
+      margin-top: 15px;
       padding-top: 10px;
     }
-    .group-words {
-      display: flex;
-      justify-content: space-between;
-      gap: 5px;
-    }
     .group-words input {
-      flex: 1;
+      display: inline-block;
+      width: 23%;
+      margin: 1%;
     }
     .hint-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin: 20px 0;
+      gap: 8px;
+      margin-top: 20px;
     }
     .tile {
       background: white;
+      padding: 10px;
       border: 1px solid #999;
       border-radius: 5px;
-      padding: 10px;
       text-align: center;
       cursor: pointer;
     }
@@ -83,30 +76,52 @@
     #colorModalContent {
       background: white;
       padding: 20px;
-      border-radius: 10px;
+      border-radius: 8px;
+    }
+    .level-entry {
+      background: white;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
     }
   </style>
 </head>
 <body>
 
-<div id="mainMenu">
-  <h1>בחר פעולה</h1>
-  <button class="btn" onclick="loadLevels()">ערוך / מחק שלב</button>
-  <button class="btn" onclick="createNewLevel()">צור שלב חדש</button>
+<div class="login visible" id="login">
+  <div class="centered">
+    <div style="font-size: 48px;">🔐</div>
+    <h1>התחברות עם טוקן</h1>
+    <input type="password" id="tokenInput" placeholder="הכנס טוקן GitHub כאן">
+    <button class="btn" onclick="enterToken()">התחבר</button>
+  </div>
 </div>
 
-<div id="levelEditor" style="display:none">
+<div class="menu" id="menu">
+  <h1>בחר פעולה</h1>
+  <button class="btn" onclick="showLevelList()">📂 ערוך/מחק שלב</button>
+  <button class="btn" onclick="createNewLevel()">➕ צור שלב חדש</button>
+</div>
+
+<div class="level-list" id="levelList">
+  <h1>רשימת שלבים</h1>
+  <div id="levelsContainer"></div>
+  <button class="btn" onclick="backToMenu()">חזור</button>
+</div>
+
+<div class="editor" id="editor">
   <h1 id="editorTitle">עריכת שלב</h1>
-  <input id="levelTitle" placeholder="שם השלב" />
+  <input id="levelTitle" placeholder="שם השלב">
   <div id="groupsContainer"></div>
   <button class="btn" onclick="goToHintSelection()">המשך</button>
   <button class="btn" onclick="backToMenu()">חזור</button>
 </div>
 
-<div id="hintSelection" style="display:none">
+<div class="hint-selection" id="hintSelection">
   <h1>בחר רמז (שתי מילים מאותה קבוצה)</h1>
   <div class="hint-grid" id="hintGrid"></div>
-  <button class="btn" onclick="saveLevel()" id="saveBtn" disabled>💾 שמור</button>
+  <button class="btn" id="saveBtn" onclick="saveLevel()" disabled>💾 שמור</button>
   <button class="btn" onclick="backToEditor()">חזור</button>
 </div>
 
@@ -119,95 +134,84 @@
 </div>
 
 <script>
-let token = prompt("הכנס את הטוקן שלך:");
+let token = '';
 let levels = [];
 let editingIndex = null;
 let currentLevel = null;
 let selectedHint = [];
-let colorTargetIndex = null;
+let colorTargetGroup = '';
 
-function backToMenu() {
-  document.getElementById("levelEditor").style.display = "none";
-  document.getElementById("mainMenu").style.display = "block";
-}
-function backToEditor() {
-  document.getElementById("hintSelection").style.display = "none";
-  document.getElementById("levelEditor").style.display = "block";
-}
-function closeColorModal() {
-  document.getElementById("colorModal").style.display = "none";
+function enterToken() {
+  token = document.getElementById('tokenInput').value.trim();
+  if (!token) return alert("יש להזין טוקן");
+  document.getElementById('login').classList.remove('visible');
+  document.getElementById('menu').classList.add('visible');
 }
 
-function createNewLevel() {
-  editingIndex = null;
-  currentLevel = {
-    title: "",
-    words: [],
-    groups: {},
-    colors: {},
-    hintPair: []
-  };
-  renderEditor();
-}
-
-function loadLevels() {
+function showLevelList() {
+  document.getElementById('menu').classList.remove('visible');
+  document.getElementById('levelList').classList.add('visible');
   fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json")
     .then(res => res.json())
     .then(data => {
       levels = data;
-      showLevelList();
+      const container = document.getElementById('levelsContainer');
+      container.innerHTML = '';
+      levels.forEach((lvl, i) => {
+        const div = document.createElement('div');
+        div.className = 'level-entry';
+        div.innerHTML = `
+          <b>${lvl.title}</b><br>
+          <button class="btn" onclick="editLevel(${i})">✏️ ערוך</button>
+          <button class="btn" onclick="deleteLevel(${i})">🗑️ מחק</button>
+        `;
+        container.appendChild(div);
+      });
     });
 }
 
-function showLevelList() {
-  document.body.innerHTML = `<h1>בחר שלב לעריכה או מחיקה</h1>`;
-  levels.forEach((lvl, i) => {
-    let div = document.createElement("div");
-    div.className = "level-entry";
-    div.innerHTML = `
-      <b>${lvl.title}</b><br/>
-      <button onclick="editLevel(${i})">✏️ ערוך</button>
-      <button onclick="deleteLevel(${i})">🗑️ מחק</button>
-    `;
-    document.body.appendChild(div);
-  });
-  let btn = document.createElement("button");
-  btn.className = "btn";
-  btn.innerText = "חזור";
-  btn.onclick = () => location.reload();
-  document.body.appendChild(btn);
-}
-
-function deleteLevel(index) {
-  if (!confirm("האם אתה בטוח שברצונך למחוק את השלב?")) return;
-  levels.splice(index, 1);
-  uploadToGitHub(levels, "מחיקת שלב");
-}
-
-function editLevel(index) {
-  editingIndex = index;
-  currentLevel = JSON.parse(JSON.stringify(levels[index]));
+function editLevel(i) {
+  editingIndex = i;
+  currentLevel = JSON.parse(JSON.stringify(levels[i]));
+  selectedHint = [...currentLevel.hintPair];
   renderEditor();
+  document.getElementById('levelList').classList.remove('visible');
+  document.getElementById('editor').classList.add('visible');
+}
+
+function deleteLevel(i) {
+  if (!confirm("האם אתה בטוח שברצונך למחוק שלב זה?")) return;
+  levels.splice(i, 1);
+  uploadToGitHub(levels, () => {
+    alert("נמחק בהצלחה!");
+    showLevelList();
+  });
+}
+
+function createNewLevel() {
+  editingIndex = null;
+  currentLevel = { title: "", words: [], groups: {}, colors: {}, hintPair: [] };
+  selectedHint = [];
+  renderEditor();
+  document.getElementById('menu').classList.remove('visible');
+  document.getElementById('editor').classList.add('visible');
 }
 
 function renderEditor() {
-  document.body.innerHTML = document.body.innerHTML; // Reset body
-  document.getElementById("mainMenu").style.display = "none";
-  document.getElementById("levelEditor").style.display = "block";
-  document.getElementById("levelTitle").value = currentLevel.title || "";
-  let container = document.getElementById("groupsContainer");
-  container.innerHTML = "";
-  let groupNames = Object.keys(currentLevel.groups);
+  document.getElementById('levelTitle').value = currentLevel.title || "";
+  const container = document.getElementById('groupsContainer');
+  container.innerHTML = '';
+  const keys = Object.keys(currentLevel.groups);
   for (let i = 0; i < 4; i++) {
-    let groupName = groupNames[i] || "";
-    let groupWords = currentLevel.groups[groupName] || ["", "", "", ""];
-    let color = currentLevel.colors?.[groupName] || "";
-    let block = document.createElement("div");
-    block.className = "group-block";
+    const name = keys[i] || "";
+    const words = currentLevel.groups?.[name] || ["", "", "", ""];
+    const color = currentLevel.colors?.[name] || "";
+    const block = document.createElement('div');
+    block.className = 'group-block';
     block.innerHTML = `
-      <input id="group-name-${i}" placeholder="שם קבוצה" value="${groupName}">
+      <input id="group-name-${i}" value="${name}" placeholder="שם קבוצה ${i+1}">
       <div class="group-words">
-        ${groupWords.map((w, j) => `<input id="group-${i}-word-${j}" placeholder="מילה" value="${w}">`).join('')}
+        ${words.map((w, j) => `<input id="group-${i}-word-${j}" value="${w}" placeholder="מילה ${j+1}">`).join('')}
       </div>
       <button class="btn" onclick="openColorPicker(${i})">בחר צבע (לא חובה)</button>
     `;
@@ -216,62 +220,63 @@ function renderEditor() {
 }
 
 function openColorPicker(i) {
-  colorTargetIndex = i;
-  document.getElementById("colorModal").style.display = "flex";
+  const name = document.getElementById(`group-name-${i}`).value.trim();
+  if (!name) return alert("יש להזין שם קבוצה לפני בחירת צבע");
+  colorTargetGroup = name;
+  document.getElementById('colorModal').style.display = 'flex';
 }
 
 function applyColor() {
-  const color = document.getElementById("colorPicker").value;
-  const name = document.getElementById(`group-name-${colorTargetIndex}`).value;
+  const color = document.getElementById('colorPicker').value;
   currentLevel.colors = currentLevel.colors || {};
-  currentLevel.colors[name] = color;
+  currentLevel.colors[colorTargetGroup] = color;
   closeColorModal();
+}
+function closeColorModal() {
+  document.getElementById('colorModal').style.display = 'none';
 }
 
 function goToHintSelection() {
-  let allWords = [];
-  let groups = {};
+  currentLevel.title = document.getElementById('levelTitle').value.trim();
+  currentLevel.groups = {};
+  currentLevel.words = [];
   for (let i = 0; i < 4; i++) {
-    let name = document.getElementById(`group-name-${i}`).value.trim() || `קבוצה ${i+1}`;
-    let words = [];
+    const name = document.getElementById(`group-name-${i}`).value.trim();
+    const words = [];
     for (let j = 0; j < 4; j++) {
-      let w = document.getElementById(`group-${i}-word-${j}`).value.trim();
+      const w = document.getElementById(`group-${i}-word-${j}`).value.trim();
       if (w) words.push(w);
     }
-    if (words.length === 4) {
-      groups[name] = words;
-      allWords.push(...words);
+    if (name && words.length === 4) {
+      currentLevel.groups[name] = words;
+      currentLevel.words.push(...words);
     }
   }
-  currentLevel.title = document.getElementById("levelTitle").value.trim();
-  currentLevel.groups = groups;
-  currentLevel.words = allWords;
   selectedHint = [...currentLevel.hintPair];
   renderHintGrid();
-  document.getElementById("levelEditor").style.display = "none";
-  document.getElementById("hintSelection").style.display = "block";
+  document.getElementById('editor').classList.remove('visible');
+  document.getElementById('hintSelection').classList.add('visible');
 }
 
 function renderHintGrid() {
-  let grid = document.getElementById("hintGrid");
-  grid.innerHTML = "";
+  const grid = document.getElementById('hintGrid');
+  grid.innerHTML = '';
   currentLevel.words.forEach(word => {
-    let div = document.createElement("div");
-    div.className = "tile";
-    div.innerText = word;
-    if (selectedHint.includes(word)) div.classList.add("selected");
-    div.onclick = () => {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.innerText = word;
+    if (selectedHint.includes(word)) tile.classList.add('selected');
+    tile.onclick = () => {
       if (selectedHint.includes(word)) {
         selectedHint = selectedHint.filter(w => w !== word);
       } else if (selectedHint.length < 2) {
         selectedHint.push(word);
       }
-      document.getElementById("saveBtn").disabled = !isValidHint();
+      document.getElementById('saveBtn').disabled = !isValidHint();
       renderHintGrid();
     };
-    grid.appendChild(div);
+    grid.appendChild(tile);
   });
-  document.getElementById("saveBtn").disabled = !isValidHint();
 }
 
 function isValidHint() {
@@ -281,6 +286,16 @@ function isValidHint() {
   );
 }
 
+function backToMenu() {
+  document.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
+  document.getElementById('menu').classList.add('visible');
+}
+
+function backToEditor() {
+  document.getElementById('hintSelection').classList.remove('visible');
+  document.getElementById('editor').classList.add('visible');
+}
+
 function saveLevel() {
   currentLevel.hintPair = [...selectedHint];
   if (editingIndex !== null) {
@@ -288,32 +303,37 @@ function saveLevel() {
   } else {
     levels.push(currentLevel);
   }
-  uploadToGitHub(levels, "הוספת/עדכון שלב");
+  uploadToGitHub(levels, () => {
+    alert("נשמר בהצלחה!");
+    backToMenu();
+  });
 }
 
-async function uploadToGitHub(data, message) {
+function uploadToGitHub(data, callback) {
   const content = JSON.stringify(data, null, 2);
   const b64 = btoa(unescape(encodeURIComponent(content)));
-  const url = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
-  const res = await fetch(url, {
+  const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
+  fetch(apiUrl, {
     headers: { Authorization: `token ${token}` }
-  });
-  const json = await res.json();
-  const sha = json.sha;
-  await fetch(url, {
-    method: "PUT",
-    headers: {
-      Authorization: `token ${token}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      message,
-      content: b64,
-      sha
+  })
+    .then(res => res.json())
+    .then(json => {
+      const sha = json.sha;
+      return fetch(apiUrl, {
+        method: "PUT",
+        headers: {
+          Authorization: `token ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: "Update levels",
+          content: b64,
+          sha
+        })
+      });
     })
-  });
-  alert("נשמר בהצלחה!");
-  location.reload();
+    .then(() => callback && callback())
+    .catch(err => alert("שגיאה בשמירה: " + err));
 }
 </script>
 </body>
