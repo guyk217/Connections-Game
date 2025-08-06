@@ -8,9 +8,8 @@
     body {
       font-family: sans-serif;
       padding: 10px;
-      background: #fff9db;
+      background: #fff5cc;
       text-align: center;
-      margin: 0;
     }
     h2 {
       margin-bottom: 10px;
@@ -63,21 +62,46 @@
       animation: mergeAnim 1.2s ease forwards;
     }
     @keyframes shake {
-      0% { transform: translateX(0); }
-      25% { transform: translateX(-5px); }
-      50% { transform: translateX(5px); }
-      75% { transform: translateX(-3px); }
-      100% { transform: translateX(0); }
+      0% {
+        transform: translateX(0);
+      }
+      25% {
+        transform: translateX(-5px);
+      }
+      50% {
+        transform: translateX(5px);
+      }
+      75% {
+        transform: translateX(-3px);
+      }
+      100% {
+        transform: translateX(0);
+      }
     }
     @keyframes pop {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.15); }
-      100% { transform: scale(1); }
+      0% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.15);
+      }
+      100% {
+        transform: scale(1);
+      }
     }
     @keyframes mergeAnim {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.2); background: #c3e6cb; }
-      100% { transform: scale(1); opacity: 1; }
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.2);
+        background: #c3e6cb;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
     .group {
       margin: 10px 0;
@@ -97,7 +121,6 @@
       border: none;
       background: #555;
       color: white;
-      cursor: pointer;
     }
     .hearts {
       font-size: 18px;
@@ -108,11 +131,20 @@
       color: #333;
       font-weight: bold;
     }
+    .back-btn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 24px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
 <h2>בחרי שלב:</h2>
+<div class="back-btn" onclick="goToMain()">⤶</div>
 <div id="level-list"></div>
+
 <script>
 let current = null;
 let selected = [];
@@ -141,8 +173,12 @@ function shuffle(arr) {
   return arr;
 }
 
+function goToMain() {
+  location.reload();
+}
+
 function showLevels() {
-  document.body.innerHTML = "<h2>בחרי שלב:</h2><div id='level-list'></div>";
+  document.body.innerHTML = "<div class='back-btn' onclick='goToMain()'>⤶</div><h2>בחרי שלב:</h2><div id='level-list'></div>";
   const container = document.getElementById("level-list");
   levels.forEach((lvl, idx) => {
     let div = document.createElement("div");
@@ -189,7 +225,7 @@ function isHintGroupFound() {
 }
 
 function renderGame() {
-  document.body.innerHTML = "";
+  document.body.innerHTML = "<div class='back-btn' onclick='showLevels()'>⤶</div>";
   let title = document.createElement("h2");
   title.innerText = current.title;
   document.body.appendChild(title);
@@ -254,16 +290,11 @@ function renderGame() {
   }
   controls.appendChild(hintBtn);
 
-  let backBtn = document.createElement("button");
-  backBtn.innerText = "⬅️ חזור לתפריט הראשי";
-  backBtn.onclick = showLevels;
-  controls.appendChild(backBtn);
-
   document.body.appendChild(controls);
 
   let heartBar = document.createElement("div");
   heartBar.className = "hearts";
-  heartBar.innerText = "❤️".repeat(hearts) + "🤍".repeat(6 - hearts);
+  heartBar.innerText = "🩷".repeat(hearts) + "🤍".repeat(6 - hearts);
   document.body.appendChild(heartBar);
 
   if (noticeText) {
@@ -365,7 +396,7 @@ function showEndMessage(success) {
   document.body.appendChild(msg);
 
   let again = document.createElement("button");
-  again.innerText = "שחקי שוב";
+  again.innerText = "חזרה לתפריט";
   again.onclick = showLevels;
   document.body.appendChild(again);
 }
