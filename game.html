@@ -13,11 +13,19 @@
       position: relative;
     }
     h2 { margin-bottom: 10px; }
-    .level { margin: 5px; padding: 10px; background: #fff; border: 1px solid #ccc; cursor: pointer; transition: 0.3s; }
-    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 15px; transition: all 0.5s ease; }
+    .level, .category-btn {
+      margin: 5px; padding: 10px;
+      background: #fff; border: 1px solid #ccc;
+      cursor: pointer; transition: 0.3s;
+    }
+    .grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-top: 15px;
+    }
     .tile {
-      background: white; padding: 12px; border: 1px solid #999; cursor: pointer;
-      user-select: none; border-radius: 5px; transition: 0.4s ease;
+      background: white; padding: 12px; border: 1px solid #999;
+      cursor: pointer; user-select: none;
+      border-radius: 5px; transition: 0.4s ease;
     }
     .tile.selected { background: #ccc; }
     .tile.removed { transform: translateY(-50px); opacity: 0; }
@@ -42,7 +50,10 @@
       50% { transform: scale(1.2); background: #c3e6cb; }
       100% { transform: scale(1); opacity: 1; }
     }
-    .group { margin: 10px 0; padding: 5px; font-weight: bold; border-radius: 4px; color: black; }
+    .group {
+      margin: 10px 0; padding: 5px; font-weight: bold;
+      border-radius: 4px; color: black;
+    }
     .controls { margin-top: 10px; }
     button {
       margin: 5px; padding: 8px 16px; font-size: 16px;
@@ -52,21 +63,20 @@
     .notice { margin-top: 10px; color: #333; font-weight: bold; }
     #backBtn {
       position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
+      top: 10px; right: 10px;
+      background: none; border: none;
+      font-size: 24px; cursor: pointer;
     }
   </style>
 </head>
 <body>
-<button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
-<h2>בחרי שלב:</h2>
+<button id="backBtn" onclick="window.location.href='index.html'">➡️</button>
+<h2>בחרי קטגוריה:</h2>
 <div id="level-list"></div>
 
 <script>
+let levels = [];
+let selectedCategory = null;
 let current = null;
 let selected = [];
 let hearts = 6;
@@ -77,13 +87,12 @@ let successWords = [];
 let noticeText = "";
 let noticeTimeout;
 const defaultColors = ["#A8D5BA", "#FFE066", "#FFB347", "#F49AC2"];
-let levels = [];
 
 fetch("levels.json")
   .then(res => res.json())
   .then(data => {
     levels = data;
-    showLevels();
+    showCategories();
   });
 
 function shuffle(arr) {
@@ -94,31 +103,46 @@ function shuffle(arr) {
   return arr;
 }
 
-function showLevels() {
+function showCategories() {
   document.body.innerHTML = `
     <button id="backBtn" onclick="window.location.href='index.html'">➡️</button>
-    <h2>בחרי שלב:</h2>
+    <h2>בחרי קטגוריה:</h2>
+    <div id="level-list"></div>`;
+  const container = document.getElementById("level-list");
+  const categories = [...new Set(levels.map(l => l.category || "ללא קטגוריה"))];
+  categories.forEach(cat => {
+    let btn = document.createElement("div");
+    btn.className = "category-btn";
+    btn.innerText = cat;
+    btn.onclick = () => {
+      selectedCategory = cat;
+      showLevels();
+    };
+    container.appendChild(btn);
+  });
+}
+
+function showLevels() {
+  document.body.innerHTML = `
+    <button id="backBtn" onclick="showCategories()">➡️</button>
+    <h2>בחרי שלב מתוך: ${selectedCategory}</h2>
     <div id='level-list'></div>`;
   const container = document.getElementById("level-list");
-  levels.forEach((lvl, idx) => {
+  levels.filter(l => (l.category || "ללא קטגוריה") === selectedCategory).forEach((lvl, idx) => {
     let div = document.createElement("div");
     div.className = "level";
     div.innerHTML = `<b>${lvl.title}</b><br><small>רמת קושי: ${lvl.difficulty || 'לא צוינה'}</small>`;
-    div.onclick = () => startLevel(idx);
+    div.onclick = () => startLevel(lvl);
     container.appendChild(div);
   });
 }
 
 function getColor(group, index) {
-  let c = current.colors?.[group];
-  if (!c || !c.trim()) {
-    return defaultColors[index % defaultColors.length];
-  }
-  return c;
+  return defaultColors[index % defaultColors.length];
 }
 
-function startLevel(index) {
-  current = JSON.parse(JSON.stringify(levels[index]));
+function startLevel(levelData) {
+  current = JSON.parse(JSON.stringify(levelData));
   let groupKeys = Object.keys(current.groups);
   current.groupColorMap = {};
   groupKeys.forEach((g, i) => {
@@ -138,17 +162,15 @@ function startLevel(index) {
 function isHintGroupFound() {
   if (!current.hintPair || current.hintPair.length < 2) return false;
   return Object.entries(current.groups).some(([group, arr]) =>
-    arr.includes(current.hintPair[0]) &&
-    arr.includes(current.hintPair[1]) &&
-    found[group]
+    arr.includes(current.hintPair[0]) && arr.includes(current.hintPair[1]) && found[group]
   );
 }
 
 function renderGame() {
   document.body.innerHTML = `
-    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+    <button id="backBtn" onclick="showLevels()">➡️</button>
     <h2>${current.title}</h2>`;
-  
+
   for (let group in found) {
     let div = document.createElement("div");
     div.className = "group";
@@ -308,7 +330,7 @@ function simulateFailureReveal() {
 
 function showEndMessage(success) {
   document.body.innerHTML = `
-    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+    <button id="backBtn" onclick="showLevels()">➡️</button>
     <h2>${success ? "מעולה! 🎉 מצאת את כל הקבוצות!" : "לא נורא! 🙃 נגמרו הניחושים"}</h2>
     <button onclick="showLevels()">שחקי שוב</button>`;
 }
