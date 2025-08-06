@@ -8,12 +8,10 @@
     body {
       font-family: sans-serif;
       padding: 10px;
-      background: #fff5cc;
+      background: #fff8d3;
       text-align: center;
     }
-    h2 {
-      margin-bottom: 10px;
-    }
+    h2 { margin-bottom: 10px; }
     .level {
       margin: 5px;
       padding: 10px;
@@ -27,7 +25,6 @@
       grid-template-columns: repeat(4, 1fr);
       gap: 12px;
       margin-top: 15px;
-      transition: all 0.5s ease;
     }
     .tile {
       background: white;
@@ -38,81 +35,35 @@
       border-radius: 5px;
       transition: 0.4s ease;
     }
-    .tile.selected {
-      background: #ccc;
-    }
-    .tile.removed {
-      transform: translateY(-50px);
-      opacity: 0;
-    }
-    .tile.shake {
-      animation: shake 0.3s;
-      background: #fdd;
-    }
-    .tile.error {
-      background: #f8d7da;
-      color: #721c24;
-    }
-    .tile.success {
-      background: #a8f0a5;
-      animation: pop 0.4s ease;
-    }
-    .tile.newly-formed {
-      background: #d4edda;
-      animation: mergeAnim 1.2s ease forwards;
-    }
+    .tile.selected { background: #ccc; }
+    .tile.removed { transform: translateY(-50px); opacity: 0; }
+    .tile.shake { animation: shake 0.3s; background: #fdd; }
+    .tile.success { background: #a8f0a5; animation: pop 0.4s ease; }
+    .tile.newly-formed { background: #d4edda; animation: mergeAnim 1.2s ease forwards; }
     @keyframes shake {
-      0% {
-        transform: translateX(0);
-      }
-      25% {
-        transform: translateX(-5px);
-      }
-      50% {
-        transform: translateX(5px);
-      }
-      75% {
-        transform: translateX(-3px);
-      }
-      100% {
-        transform: translateX(0);
-      }
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-3px); }
+      100% { transform: translateX(0); }
     }
     @keyframes pop {
-      0% {
-        transform: scale(1);
-      }
-      50% {
-        transform: scale(1.15);
-      }
-      100% {
-        transform: scale(1);
-      }
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
     }
     @keyframes mergeAnim {
-      0% {
-        transform: scale(1);
-        opacity: 1;
-      }
-      50% {
-        transform: scale(1.2);
-        background: #c3e6cb;
-      }
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); background: #c3e6cb; }
+      100% { transform: scale(1); opacity: 1; }
     }
     .group {
       margin: 10px 0;
       padding: 5px;
       font-weight: bold;
       border-radius: 4px;
-      color: black;
     }
-    .controls {
-      margin-top: 10px;
-    }
+    .controls { margin-top: 10px; }
     button {
       margin: 5px;
       padding: 8px 16px;
@@ -131,20 +82,19 @@
       color: #333;
       font-weight: bold;
     }
-    .back-btn {
+    .top-right {
       position: absolute;
+      right: 10px;
       top: 10px;
-      left: 10px;
-      font-size: 24px;
+      font-size: 22px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
+<div class="top-right" onclick="location.href='index.html'">➡️</div>
 <h2>בחרי שלב:</h2>
-<div class="back-btn" onclick="goToMain()">⤶</div>
 <div id="level-list"></div>
-
 <script>
 let current = null;
 let selected = [];
@@ -155,7 +105,6 @@ let shakingWords = [];
 let successWords = [];
 let noticeText = "";
 let noticeTimeout;
-const defaultColors = ["#A8D5BA", "#FFE066", "#FFB347", "#F49AC2"];
 let levels = [];
 
 fetch("levels.json")
@@ -173,37 +122,20 @@ function shuffle(arr) {
   return arr;
 }
 
-function goToMain() {
-  location.reload();
-}
-
 function showLevels() {
-  document.body.innerHTML = "<div class='back-btn' onclick='goToMain()'>⤶</div><h2>בחרי שלב:</h2><div id='level-list'></div>";
   const container = document.getElementById("level-list");
+  container.innerHTML = "";
   levels.forEach((lvl, idx) => {
     let div = document.createElement("div");
     div.className = "level";
-    div.innerText = lvl.title;
+    div.innerText = `${lvl.title} (${lvl.difficulty ? 'רמת קושי: ' + lvl.difficulty : 'ללא קושי'})`;
     div.onclick = () => startLevel(idx);
     container.appendChild(div);
   });
 }
 
-function getColor(group, index) {
-  let c = current.colors?.[group];
-  if (!c || !c.trim()) {
-    return defaultColors[index % defaultColors.length];
-  }
-  return c;
-}
-
 function startLevel(index) {
   current = JSON.parse(JSON.stringify(levels[index]));
-  let groupKeys = Object.keys(current.groups);
-  current.groupColorMap = {};
-  groupKeys.forEach((g, i) => {
-    current.groupColorMap[g] = getColor(g, i);
-  });
   current.words = shuffle([...current.words]);
   selected = [];
   found = {};
@@ -225,7 +157,17 @@ function isHintGroupFound() {
 }
 
 function renderGame() {
-  document.body.innerHTML = "<div class='back-btn' onclick='showLevels()'>⤶</div>";
+  document.body.innerHTML = "";
+  let back = document.createElement("div");
+  back.className = "top-right";
+  back.innerText = "➡️";
+  back.onclick = showLevels;
+  document.body.appendChild(back);
+
+  let diff = document.createElement("h3");
+  diff.innerText = current.difficulty ? "רמת קושי: " + current.difficulty : "";
+  document.body.appendChild(diff);
+
   let title = document.createElement("h2");
   title.innerText = current.title;
   document.body.appendChild(title);
@@ -233,7 +175,6 @@ function renderGame() {
   for (let group in found) {
     let div = document.createElement("div");
     div.className = "group";
-    div.style.background = current.groupColorMap[group];
     div.innerText = group + ": " + found[group].join(", ");
     document.body.appendChild(div);
   }
