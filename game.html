@@ -8,36 +8,21 @@
     body {
       font-family: sans-serif;
       padding: 10px;
-      background: #fff8d3;
+      background: #fff8dc;
       text-align: center;
+      position: relative;
     }
     h2 { margin-bottom: 10px; }
-    .level {
-      margin: 5px;
-      padding: 10px;
-      background: #fff;
-      border: 1px solid #ccc;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-top: 15px;
-    }
+    .level { margin: 5px; padding: 10px; background: #fff; border: 1px solid #ccc; cursor: pointer; transition: 0.3s; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 15px; transition: all 0.5s ease; }
     .tile {
-      background: white;
-      padding: 12px;
-      border: 1px solid #999;
-      cursor: pointer;
-      user-select: none;
-      border-radius: 5px;
-      transition: 0.4s ease;
+      background: white; padding: 12px; border: 1px solid #999; cursor: pointer;
+      user-select: none; border-radius: 5px; transition: 0.4s ease;
     }
     .tile.selected { background: #ccc; }
     .tile.removed { transform: translateY(-50px); opacity: 0; }
     .tile.shake { animation: shake 0.3s; background: #fdd; }
+    .tile.error { background: #f8d7da; color: #721c24; }
     .tile.success { background: #a8f0a5; animation: pop 0.4s ease; }
     .tile.newly-formed { background: #d4edda; animation: mergeAnim 1.2s ease forwards; }
     @keyframes shake {
@@ -57,44 +42,30 @@
       50% { transform: scale(1.2); background: #c3e6cb; }
       100% { transform: scale(1); opacity: 1; }
     }
-    .group {
-      margin: 10px 0;
-      padding: 5px;
-      font-weight: bold;
-      border-radius: 4px;
-    }
+    .group { margin: 10px 0; padding: 5px; font-weight: bold; border-radius: 4px; color: black; }
     .controls { margin-top: 10px; }
     button {
-      margin: 5px;
-      padding: 8px 16px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: none;
-      background: #555;
-      color: white;
+      margin: 5px; padding: 8px 16px; font-size: 16px;
+      border-radius: 6px; border: none; background: #555; color: white;
     }
-    .hearts {
-      font-size: 18px;
-      margin-top: 10px;
-    }
-    .notice {
-      margin-top: 10px;
-      color: #333;
-      font-weight: bold;
-    }
-    .top-right {
+    .hearts { font-size: 18px; margin-top: 10px; }
+    .notice { margin-top: 10px; color: #333; font-weight: bold; }
+    #backBtn {
       position: absolute;
-      right: 10px;
       top: 10px;
-      font-size: 22px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 24px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
-<div class="top-right" onclick="location.href='index.html'">➡️</div>
+<button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
 <h2>בחרי שלב:</h2>
 <div id="level-list"></div>
+
 <script>
 let current = null;
 let selected = [];
@@ -105,6 +76,7 @@ let shakingWords = [];
 let successWords = [];
 let noticeText = "";
 let noticeTimeout;
+const defaultColors = ["#A8D5BA", "#FFE066", "#FFB347", "#F49AC2"];
 let levels = [];
 
 fetch("levels.json")
@@ -123,19 +95,35 @@ function shuffle(arr) {
 }
 
 function showLevels() {
+  document.body.innerHTML = `
+    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+    <h2>בחרי שלב:</h2>
+    <div id='level-list'></div>`;
   const container = document.getElementById("level-list");
-  container.innerHTML = "";
   levels.forEach((lvl, idx) => {
     let div = document.createElement("div");
     div.className = "level";
-    div.innerText = `${lvl.title} (${lvl.difficulty ? 'רמת קושי: ' + lvl.difficulty : 'ללא קושי'})`;
+    div.innerHTML = `<b>${lvl.title}</b><br><small>רמת קושי: ${lvl.difficulty || 'לא צוינה'}</small>`;
     div.onclick = () => startLevel(idx);
     container.appendChild(div);
   });
 }
 
+function getColor(group, index) {
+  let c = current.colors?.[group];
+  if (!c || !c.trim()) {
+    return defaultColors[index % defaultColors.length];
+  }
+  return c;
+}
+
 function startLevel(index) {
   current = JSON.parse(JSON.stringify(levels[index]));
+  let groupKeys = Object.keys(current.groups);
+  current.groupColorMap = {};
+  groupKeys.forEach((g, i) => {
+    current.groupColorMap[g] = getColor(g, i);
+  });
   current.words = shuffle([...current.words]);
   selected = [];
   found = {};
@@ -157,24 +145,14 @@ function isHintGroupFound() {
 }
 
 function renderGame() {
-  document.body.innerHTML = "";
-  let back = document.createElement("div");
-  back.className = "top-right";
-  back.innerText = "➡️";
-  back.onclick = showLevels;
-  document.body.appendChild(back);
-
-  let diff = document.createElement("h3");
-  diff.innerText = current.difficulty ? "רמת קושי: " + current.difficulty : "";
-  document.body.appendChild(diff);
-
-  let title = document.createElement("h2");
-  title.innerText = current.title;
-  document.body.appendChild(title);
-
+  document.body.innerHTML = `
+    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+    <h2>${current.title}</h2>`;
+  
   for (let group in found) {
     let div = document.createElement("div");
     div.className = "group";
+    div.style.background = current.groupColorMap[group];
     div.innerText = group + ": " + found[group].join(", ");
     document.body.appendChild(div);
   }
@@ -329,17 +307,10 @@ function simulateFailureReveal() {
 }
 
 function showEndMessage(success) {
-  document.body.innerHTML = "";
-  let msg = document.createElement("h2");
-  msg.innerText = success
-    ? "מעולה! 🎉 מצאת את כל הקבוצות!"
-    : "לא נורא! 🙃 נגמרו הניחושים";
-  document.body.appendChild(msg);
-
-  let again = document.createElement("button");
-  again.innerText = "חזרה לתפריט";
-  again.onclick = showLevels;
-  document.body.appendChild(again);
+  document.body.innerHTML = `
+    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+    <h2>${success ? "מעולה! 🎉 מצאת את כל הקבוצות!" : "לא נורא! 🙃 נגמרו הניחושים"}</h2>
+    <button onclick="showLevels()">שחקי שוב</button>`;
 }
 </script>
 </body>
