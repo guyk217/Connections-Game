@@ -146,8 +146,10 @@ function isHintGroupFound() {
 
 function renderGame() {
   document.body.innerHTML = `
-    <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
-    <h2>${current.title}</h2>`;
+  <button id="backBtn" onclick="window.location.href='game.html'">➡️</button>
+  <h2>${current.title}</h2>
+  <div><small>רמת קושי: ${current.difficulty || "לא צוינה"}</small></div>`;
+  
   
   for (let group in found) {
     let div = document.createElement("div");
