@@ -19,6 +19,13 @@
       margin-bottom: 20px;
       text-align: center;
     }
+    .top-back {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      font-size: 26px;
+      cursor: pointer;
+    }
     .centered { text-align: center; }
     .login, .menu, .editor, .hint-selection, .level-list { display: none; }
     .visible { display: block; }
@@ -77,6 +84,7 @@
       background: white;
       padding: 20px;
       border-radius: 8px;
+      text-align: center;
     }
     .level-entry {
       background: white;
@@ -85,26 +93,12 @@
       border-radius: 6px;
       border: 1px solid #ccc;
     }
-    .top-right {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      font-size: 22px;
-      text-decoration: none;
-      background: none;
-      border: none;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
 
-<!-- כפתורי חזור -->
-<a class="top-right" id="backFromLogin" href="index.html" style="display:none;">➡️</a>
-<a class="top-right" id="backFromMenu" href="index.html" style="display:none;">➡️</a>
-<button class="top-right" id="backToMainMenu" style="display:none;" onclick="backToMenu()">➡️</button>
-
 <div class="login visible" id="login">
+  <div class="top-back" onclick="location.href='index.html'">➡️</div>
   <div class="centered">
     <div style="font-size: 48px;">🔐</div>
     <h1>התחברות עם טוקן</h1>
@@ -114,33 +108,48 @@
 </div>
 
 <div class="menu" id="menu">
+  <div class="top-back" onclick="location.href='index.html'">➡️</div>
   <h1>בחר פעולה</h1>
   <button class="btn" onclick="showLevelList()">📂 ערוך/מחק שלב</button>
   <button class="btn" onclick="createNewLevel()">➕ צור שלב חדש</button>
 </div>
 
 <div class="level-list" id="levelList">
+  <div class="top-back" onclick="backToMenu()">➡️</div>
   <h1>רשימת שלבים</h1>
   <div id="levelsContainer"></div>
+  <button class="btn" onclick="backToMenu()">חזור</button>
 </div>
 
 <div class="editor" id="editor">
+  <div class="top-back" onclick="backToMenu()">➡️</div>
   <h1 id="editorTitle">עריכת שלב</h1>
   <input id="levelTitle" placeholder="שם השלב">
+  <label>רמת קושי:</label>
+  <select id="levelDifficulty">
+    <option value="">בחר רמת קושי</option>
+    <option value="קל">קל</option>
+    <option value="בינוני">בינוני</option>
+    <option value="קשה">קשה</option>
+  </select>
   <div id="groupsContainer"></div>
   <button class="btn" onclick="goToHintSelection()">המשך</button>
+  <button class="btn" onclick="backToMenu()">חזור</button>
 </div>
 
 <div class="hint-selection" id="hintSelection">
+  <div class="top-back" onclick="backToEditor()">➡️</div>
   <h1>בחר רמז (שתי מילים מאותה קבוצה)</h1>
   <div class="hint-grid" id="hintGrid"></div>
   <button class="btn" id="saveBtn" onclick="saveLevel()" disabled>💾 שמור</button>
+  <button class="btn" onclick="backToEditor()">חזור</button>
 </div>
 
 <div id="colorModal">
   <div id="colorModalContent">
-    <input type="color" id="colorPicker">
+    <input type="color" id="colorPicker"><br>
     <button class="btn" onclick="applyColor()">בחר</button>
+    <button class="btn" onclick="deleteColor()">מחק צבע</button><br>
     <button class="btn" onclick="closeColorModal()">ביטול</button>
   </div>
 </div>
@@ -151,21 +160,18 @@ let levels = [];
 let editingIndex = null;
 let currentLevel = null;
 let selectedHint = [];
+let colorTargetGroup = '';
 
 function enterToken() {
   token = document.getElementById('tokenInput').value.trim();
   if (!token) return alert("יש להזין טוקן");
   document.getElementById('login').classList.remove('visible');
   document.getElementById('menu').classList.add('visible');
-  document.getElementById('backFromLogin').style.display = 'none';
-  document.getElementById('backFromMenu').style.display = 'inline';
 }
 
 function showLevelList() {
   document.getElementById('menu').classList.remove('visible');
   document.getElementById('levelList').classList.add('visible');
-  document.getElementById('backToMainMenu').style.display = 'inline';
-
   fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json")
     .then(res => res.json())
     .then(data => {
@@ -205,17 +211,16 @@ function deleteLevel(i) {
 
 function createNewLevel() {
   editingIndex = null;
-  currentLevel = { title: "", words: [], groups: {}, colors: {}, hintPair: [] };
+  currentLevel = { title: "", difficulty: "", words: [], groups: {}, colors: {}, hintPair: [] };
   selectedHint = [];
   renderEditor();
   document.getElementById('menu').classList.remove('visible');
   document.getElementById('editor').classList.add('visible');
-  document.getElementById('backFromMenu').style.display = 'none';
-  document.getElementById('backToMainMenu').style.display = 'inline';
 }
 
 function renderEditor() {
   document.getElementById('levelTitle').value = currentLevel.title || "";
+  document.getElementById('levelDifficulty').value = currentLevel.difficulty || "";
   const container = document.getElementById('groupsContainer');
   container.innerHTML = '';
   const keys = Object.keys(currentLevel.groups);
@@ -229,13 +234,40 @@ function renderEditor() {
       <div class="group-words">
         ${words.map((w, j) => `<input id="group-${i}-word-${j}" value="${w}" placeholder="מילה ${j+1}">`).join('')}
       </div>
+      <button class="btn" onclick="openColorPicker(${i})">בחר צבע (לא חובה)</button>
     `;
     container.appendChild(block);
   }
 }
 
+function openColorPicker(i) {
+  const name = document.getElementById(`group-name-${i}`).value.trim();
+  if (!name) return alert("יש להזין שם קבוצה לפני בחירת צבע");
+  colorTargetGroup = name;
+  document.getElementById('colorModal').style.display = 'flex';
+}
+
+function applyColor() {
+  const color = document.getElementById('colorPicker').value;
+  currentLevel.colors = currentLevel.colors || {};
+  currentLevel.colors[colorTargetGroup] = color;
+  closeColorModal();
+}
+
+function deleteColor() {
+  if (currentLevel.colors && colorTargetGroup in currentLevel.colors) {
+    delete currentLevel.colors[colorTargetGroup];
+  }
+  closeColorModal();
+}
+
+function closeColorModal() {
+  document.getElementById('colorModal').style.display = 'none';
+}
+
 function goToHintSelection() {
   currentLevel.title = document.getElementById('levelTitle').value.trim();
+  currentLevel.difficulty = document.getElementById('levelDifficulty').value;
   currentLevel.groups = {};
   currentLevel.words = [];
   for (let i = 0; i < 4; i++) {
@@ -287,8 +319,11 @@ function isValidHint() {
 function backToMenu() {
   document.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
   document.getElementById('menu').classList.add('visible');
-  document.getElementById('backFromMenu').style.display = 'inline';
-  document.getElementById('backToMainMenu').style.display = 'none';
+}
+
+function backToEditor() {
+  document.getElementById('hintSelection').classList.remove('visible');
+  document.getElementById('editor').classList.add('visible');
 }
 
 function saveLevel() {
