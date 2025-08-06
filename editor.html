@@ -88,7 +88,7 @@
 <div class="login visible" id="login">
   <div class="centered">
     <div style="font-size: 48px;">🔐</div>
-    <h1>🛠️התחברות עם טוקן GitHub</h1>
+    <h1>התחברות עם טוקןן GitHub</h1>
     <input type="password" id="tokenInput" placeholder="הכנס טוקן GitHub כאן">
     <button class="btn" onclick="enterToken()">התחבר</button>
   </div>
@@ -332,9 +332,7 @@ function uploadToGitHub(data, callback) {
     }
   })
     .then(res => {
-      if (!res.ok) {
-        return res.json().then(err => { throw new Error(err.message || JSON.stringify(err)); });
-      }
+      if (!res.ok) return res.json().then(err => { throw new Error(err.message || JSON.stringify(err)); });
       return res.json();
     })
     .then(json => {
@@ -354,9 +352,7 @@ function uploadToGitHub(data, callback) {
       });
     })
     .then(res => {
-      if (!res.ok) {
-        return res.json().then(err => { throw new Error(err.message || JSON.stringify(err)); });
-      }
+      if (!res.ok) return res.json().then(err => { throw new Error(err.message || JSON.stringify(err)); });
       if (callback) callback();
     })
     .catch(err => {
