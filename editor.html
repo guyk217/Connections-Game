@@ -115,6 +115,7 @@ let editingIndex = null;
 let currentLevel = null;
 let selectedHint = [];
 let lockedGroup = null;
+let sha = null;
 
 function enterToken() {
   token = document.getElementById('tokenInput').value.trim();
@@ -275,7 +276,7 @@ function copyJson() {
 function copyFullPayload() {
   const content = JSON.stringify([...levels], null, 2);
   const b64 = btoa(unescape(encodeURIComponent(content)));
-  navigator.clipboard.writeText(JSON.stringify({ message: "Update levels", content: b64 }, null, 2))
+  navigator.clipboard.writeText(JSON.stringify({ message: "Update levels", content: b64, sha: sha }, null, 2))
     .then(() => alert("הועתק תוכן בקשת GitHub"));
 }
 
@@ -301,7 +302,7 @@ function uploadToGitHub(data, callback) {
   })
     .then(res => res.json())
     .then(json => {
-      const sha = json.sha;
+      sha = json.sha;
       return fetch(apiUrl, {
         method: "PUT",
         headers: {
