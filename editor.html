@@ -61,7 +61,9 @@
       text-align: center;
       cursor: pointer;
     }
-    .tile.selected { background: #cce5ff; }
+    .tile.selected {
+      background: #cce5ff;
+    }
     .tile.disabled {
       background: #eee;
       color: #aaa;
@@ -129,33 +131,41 @@
   <a href="#" class="back-button" onclick="backToEditor()">➡️</a>
   <h1>בחר רמז (שתי מילים מאותה קבוצה)</h1>
   <div class="hint-grid" id="hintGrid"></div>
-  <button class="btn" onclick="copyJson()">📋 העתק JSON</button>
   <button class="btn" id="saveBtn" onclick="saveLevel()" disabled>💾 שמור</button>
+  <button class="btn" onclick="copyJSON()">📋 העתק JSON</button>
   <button class="btn" onclick="backToEditor()">חזור</button>
 </div>
 
 <script>
 let token = '';
+let sha = '';
 let levels = [];
 let editingIndex = null;
 let currentLevel = null;
 let selectedHint = [];
-let sha = null;
+let hintGroupName = '';
 
 function enterToken() {
   token = document.getElementById('tokenInput').value.trim();
   if (!token) return alert("יש להזין טוקן");
+
   fetch("https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json", {
     headers: { Authorization: `token ${token}` }
   })
-  .then(res => res.json())
+  .then(res => {
+    if (!res.ok) throw new Error("שגיאה בטעינת הקובץ מה-GitHub");
+    return res.json();
+  })
   .then(json => {
     sha = json.sha;
-    levels = JSON.parse(atob(json.content));
+    const content = atob(json.content.replace(/\n/g, ''));
+    levels = JSON.parse(content);
     document.getElementById('login').classList.remove('visible');
     document.getElementById('menu').classList.add('visible');
   })
-  .catch(err => alert("שגיאה בטעינה: " + err));
+  .catch(err => {
+    alert("שגיאה בהתחברות: " + err.message);
+  });
 }
 
 function showLevelList() {
@@ -179,13 +189,13 @@ function editLevel(i) {
   editingIndex = i;
   currentLevel = JSON.parse(JSON.stringify(levels[i]));
   selectedHint = [...currentLevel.hintPair];
-  renderEditor();
   document.getElementById('levelList').classList.remove('visible');
+  renderEditor();
   document.getElementById('editor').classList.add('visible');
 }
 
 function deleteLevel(i) {
-  if (!confirm("האם למחוק שלב זה?")) return;
+  if (!confirm("האם אתה בטוח שברצונך למחוק שלב זה?")) return;
   levels.splice(i, 1);
   uploadToGitHub(levels, () => {
     alert("נמחק בהצלחה!");
@@ -249,30 +259,40 @@ function goToHintSelection() {
 function renderHintGrid() {
   const grid = document.getElementById('hintGrid');
   grid.innerHTML = '';
-  let allowedGroup = null;
+  hintGroupName = '';
   if (selectedHint.length > 0) {
-    allowedGroup = Object.values(currentLevel.groups).find(group => group.includes(selectedHint[0]));
+    for (const [groupName, words] of Object.entries(currentLevel.groups)) {
+      if (words.includes(selectedHint[0])) {
+        hintGroupName = groupName;
+        break;
+      }
+    }
   }
+
   currentLevel.words.forEach(word => {
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.innerText = word;
+    const group = Object.entries(currentLevel.groups).find(([_, g]) => g.includes(word));
+    const groupName = group ? group[0] : '';
+
     if (selectedHint.includes(word)) tile.classList.add('selected');
-    if (allowedGroup && !allowedGroup.includes(word) && !selectedHint.includes(word)) {
-      tile.classList.add('disabled');
-    } else {
-      tile.onclick = () => {
-        if (selectedHint.includes(word)) {
-          selectedHint = selectedHint.filter(w => w !== word);
-        } else if (selectedHint.length < 2) {
-          selectedHint.push(word);
-        }
-        document.getElementById('saveBtn').disabled = !isValidHint();
-        renderHintGrid();
-      };
-    }
+    if (hintGroupName && groupName !== hintGroupName) tile.classList.add('disabled');
+
+    tile.onclick = () => {
+      if (tile.classList.contains('disabled')) return;
+      if (selectedHint.includes(word)) {
+        selectedHint = selectedHint.filter(w => w !== word);
+        hintGroupName = '';
+      } else if (selectedHint.length < 2) {
+        selectedHint.push(word);
+      }
+      document.getElementById('saveBtn').disabled = !isValidHint();
+      renderHintGrid();
+    };
     grid.appendChild(tile);
   });
+
   document.getElementById('saveBtn').disabled = !isValidHint();
 }
 
@@ -281,26 +301,6 @@ function isValidHint() {
   return Object.values(currentLevel.groups).some(group =>
     group.includes(selectedHint[0]) && group.includes(selectedHint[1])
   );
-}
-
-function saveLevel() {
-  currentLevel.hintPair = [...selectedHint];
-  if (editingIndex !== null) {
-    levels[editingIndex] = currentLevel;
-  } else {
-    levels.push(currentLevel);
-  }
-  uploadToGitHub(levels, () => {
-    alert("נשמר בהצלחה!");
-    backToMenu();
-  });
-}
-
-function copyJson() {
-  const json = JSON.stringify([...levels, currentLevel], null, 2);
-  navigator.clipboard.writeText(json).then(() => {
-    alert("הועתק ללוח!");
-  });
 }
 
 function backToMenu() {
@@ -313,12 +313,24 @@ function backToEditor() {
   document.getElementById('editor').classList.add('visible');
 }
 
-function uploadToGitHub(data, callback) {
-  if (!sha) return alert("שגיאה: לא נטען SHA. התחבר מחדש.");
-  const content = JSON.stringify(data, null, 2);
+function copyJSON() {
+  const text = JSON.stringify(levels, null, 2);
+  navigator.clipboard.writeText(text);
+  alert("הועתק JSON ללוח");
+}
+
+function saveLevel() {
+  currentLevel.hintPair = [...selectedHint];
+  if (editingIndex !== null) {
+    levels[editingIndex] = currentLevel;
+  } else {
+    levels.push(currentLevel);
+  }
+
+  const content = JSON.stringify(levels, null, 2);
   const b64 = btoa(unescape(encodeURIComponent(content)));
-  const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
-  fetch(apiUrl, {
+
+  fetch("https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json", {
     method: "PUT",
     headers: {
       Authorization: `token ${token}`,
@@ -331,13 +343,12 @@ function uploadToGitHub(data, callback) {
     })
   })
   .then(res => {
-    if (!res.ok) throw new Error("שגיאה בשמירה");
-    return res.json();
+    if (!res.ok) throw new Error("שגיאה בהעלאה");
+    alert("נשמר בהצלחה!");
+    backToMenu();
   })
-  .then(() => callback && callback())
-  .catch(err => alert("שגיאה בשמירה: " + err));
+  .catch(err => alert("שגיאה בשמירה: " + err.message));
 }
 </script>
-
 </body>
 </html>
