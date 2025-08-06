@@ -5,20 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>מה הקשר?</title>
   <style>
-    body { font-family: sans-serif; padding: 10px; background: #f2f2f2; text-align: center; }
-    h2 { margin-bottom: 10px; }
-    .level { margin: 5px; padding: 10px; background: #fff; border: 1px solid #ccc; cursor: pointer; transition: 0.3s; }
-    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 15px; transition: all 0.5s ease; }
-    .tile {
-      background: white; padding: 12px; border: 1px solid #999; cursor: pointer;
-      user-select: none; border-radius: 5px; transition: 0.4s ease;
+    body {
+      font-family: sans-serif;
+      padding: 10px;
+      background: #fff9db;
+      text-align: center;
+      margin: 0;
     }
-    .tile.selected { background: #ccc; }
-    .tile.removed { transform: translateY(-50px); opacity: 0; }
-    .tile.shake { animation: shake 0.3s; background: #fdd; }
-    .tile.error { background: #f8d7da; color: #721c24; }
-    .tile.success { background: #a8f0a5; animation: pop 0.4s ease; }
-    .tile.newly-formed { background: #d4edda; animation: mergeAnim 1.2s ease forwards; }
+    h2 {
+      margin-bottom: 10px;
+    }
+    .level {
+      margin: 5px;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 15px;
+      transition: all 0.5s ease;
+    }
+    .tile {
+      background: white;
+      padding: 12px;
+      border: 1px solid #999;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 5px;
+      transition: 0.4s ease;
+    }
+    .tile.selected {
+      background: #ccc;
+    }
+    .tile.removed {
+      transform: translateY(-50px);
+      opacity: 0;
+    }
+    .tile.shake {
+      animation: shake 0.3s;
+      background: #fdd;
+    }
+    .tile.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .tile.success {
+      background: #a8f0a5;
+      animation: pop 0.4s ease;
+    }
+    .tile.newly-formed {
+      background: #d4edda;
+      animation: mergeAnim 1.2s ease forwards;
+    }
     @keyframes shake {
       0% { transform: translateX(0); }
       25% { transform: translateX(-5px); }
@@ -36,14 +79,35 @@
       50% { transform: scale(1.2); background: #c3e6cb; }
       100% { transform: scale(1); opacity: 1; }
     }
-    .group { margin: 10px 0; padding: 5px; font-weight: bold; border-radius: 4px; color: black; }
-    .controls { margin-top: 10px; }
-    button {
-      margin: 5px; padding: 8px 16px; font-size: 16px;
-      border-radius: 6px; border: none; background: #555; color: white;
+    .group {
+      margin: 10px 0;
+      padding: 5px;
+      font-weight: bold;
+      border-radius: 4px;
+      color: black;
     }
-    .hearts { font-size: 18px; margin-top: 10px; }
-    .notice { margin-top: 10px; color: #333; font-weight: bold; }
+    .controls {
+      margin-top: 10px;
+    }
+    button {
+      margin: 5px;
+      padding: 8px 16px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+      background: #555;
+      color: white;
+      cursor: pointer;
+    }
+    .hearts {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+    .notice {
+      margin-top: 10px;
+      color: #333;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -189,6 +253,11 @@ function renderGame() {
     };
   }
   controls.appendChild(hintBtn);
+
+  let backBtn = document.createElement("button");
+  backBtn.innerText = "⬅️ חזור לתפריט הראשי";
+  backBtn.onclick = showLevels;
+  controls.appendChild(backBtn);
 
   document.body.appendChild(controls);
 
