@@ -15,7 +15,6 @@
     },
     "hintPair": ["A", "C"],
     "difficulty": "קל",
-    "category": "גיא"
   },
   {
     "title": "גיא #1",
@@ -41,6 +40,5 @@
     },
     "hintPair": ["ימינו", "ברזל"],
     "difficulty": "קשה",
-    "category": "גיא"
   }
 ]
