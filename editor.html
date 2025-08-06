@@ -168,8 +168,15 @@ function showLevelList() {
 
 function editLevel(i) {
   editingIndex = i;
-  currentLevel = JSON.parse(JSON.stringify(levels[i]));
-  selectedHint = [...currentLevel.hintPair];
+  const lvl = levels[i];
+  currentLevel = {
+    title: lvl.title || "",
+    difficulty: lvl.difficulty || "קל",
+    groups: lvl.groups || {},
+    words: lvl.words || [],
+    hintPair: lvl.hintPair || []
+  };
+  selectedHint = [...(currentLevel.hintPair || [])];
   renderEditor();
   document.getElementById('levelList').classList.remove('visible');
   document.getElementById('editor').classList.add('visible');
@@ -194,14 +201,14 @@ function createNewLevel() {
 }
 
 function renderEditor() {
-  document.getElementById('levelTitle').value = currentLevel.title || "";
-  document.getElementById('difficulty').value = currentLevel.difficulty || "קל";
+  document.getElementById('levelTitle').value = currentLevel.title;
+  document.getElementById('difficulty').value = currentLevel.difficulty;
   const container = document.getElementById('groupsContainer');
   container.innerHTML = '';
   const keys = Object.keys(currentLevel.groups);
   for (let i = 0; i < 4; i++) {
     const name = keys[i] || "";
-    const words = currentLevel.groups?.[name] || ["", "", "", ""];
+    const words = currentLevel.groups[name] || ["", "", "", ""];
     const block = document.createElement('div');
     block.className = 'group-block';
     block.innerHTML = `
@@ -231,7 +238,7 @@ function goToHintSelection() {
       currentLevel.words.push(...words);
     }
   }
-  selectedHint = [...currentLevel.hintPair];
+  selectedHint = [...(currentLevel.hintPair || [])];
   renderHintGrid();
   document.getElementById('editor').classList.remove('visible');
   document.getElementById('hintSelection').classList.add('visible');
@@ -240,7 +247,7 @@ function goToHintSelection() {
 function renderHintGrid() {
   const grid = document.getElementById('hintGrid');
   grid.innerHTML = '';
-  currentLevel.words.forEach(word => {
+  (currentLevel.words || []).forEach(word => {
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.innerText = word;
@@ -256,6 +263,7 @@ function renderHintGrid() {
     };
     grid.appendChild(tile);
   });
+  document.getElementById('saveBtn').disabled = !isValidHint();
 }
 
 function isValidHint() {
