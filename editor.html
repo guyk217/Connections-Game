@@ -16,10 +16,16 @@
     }
     h1 {
       font-size: 24px;
-      margin-bottom: 20px;
+      margin: 40px 0 20px;
       text-align: center;
     }
-    .centered { text-align: center; }
+    .header-back {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 28px;
+      cursor: pointer;
+    }
     .login, .menu, .editor, .hint-selection, .level-list { display: none; }
     .visible { display: block; }
     input, select, button {
@@ -85,17 +91,24 @@
       border-radius: 6px;
       border: 1px solid #ccc;
     }
+    .difficulty {
+      font-size: 16px;
+      color: #555;
+      margin-top: -10px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
 
+<div class="header-back" onclick="backToMenu()">➡️</div>
+
 <div class="login visible" id="login">
-  <div class="centered">
-    <div style="font-size: 48px;">🔐</div>
-    <h1>התחברות עם טוקן</h1>
-    <input type="password" id="tokenInput" placeholder="הכנס טוקן GitHub כאן">
-    <button class="btn" onclick="enterToken()">התחבר</button>
-  </div>
+  <div style="font-size: 48px; text-align:center;">🔐</div>
+  <h1>התחברות עם טוקן</h1>
+  <input type="password" id="tokenInput" placeholder="הכנס טוקן GitHub כאן">
+  <button class="btn" onclick="enterToken()">התחבר</button>
 </div>
 
 <div class="menu" id="menu">
@@ -107,7 +120,6 @@
 <div class="level-list" id="levelList">
   <h1>רשימת שלבים</h1>
   <div id="levelsContainer"></div>
-  <button class="btn" onclick="backToMenu()">חזור</button>
 </div>
 
 <div class="editor" id="editor">
@@ -115,14 +127,12 @@
   <input id="levelTitle" placeholder="שם השלב">
   <div id="groupsContainer"></div>
   <button class="btn" onclick="goToHintSelection()">המשך</button>
-  <button class="btn" onclick="backToMenu()">חזור</button>
 </div>
 
 <div class="hint-selection" id="hintSelection">
   <h1>בחר רמז (שתי מילים מאותה קבוצה)</h1>
   <div class="hint-grid" id="hintGrid"></div>
   <button class="btn" id="saveBtn" onclick="saveLevel()" disabled>💾 שמור</button>
-  <button class="btn" onclick="backToEditor()">חזור</button>
 </div>
 
 <div id="colorModal">
@@ -149,7 +159,7 @@ function enterToken() {
 }
 
 function showLevelList() {
-  document.getElementById('menu').classList.remove('visible');
+  hideAll();
   document.getElementById('levelList').classList.add('visible');
   fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json")
     .then(res => res.json())
@@ -161,7 +171,8 @@ function showLevelList() {
         const div = document.createElement('div');
         div.className = 'level-entry';
         div.innerHTML = `
-          <b>${lvl.title}</b><br>
+          <b>${lvl.title}</b>
+          <div class="difficulty">רמת קושי: ${lvl.difficulty || 'לא צוינה'}</div>
           <button class="btn" onclick="editLevel(${i})">✏️ ערוך</button>
           <button class="btn" onclick="deleteLevel(${i})">🗑️ מחק</button>
         `;
@@ -170,12 +181,21 @@ function showLevelList() {
     });
 }
 
+function hideAll() {
+  document.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
+}
+
+function backToMenu() {
+  hideAll();
+  document.getElementById('menu').classList.add('visible');
+}
+
 function editLevel(i) {
   editingIndex = i;
   currentLevel = JSON.parse(JSON.stringify(levels[i]));
   selectedHint = [...currentLevel.hintPair];
   renderEditor();
-  document.getElementById('levelList').classList.remove('visible');
+  hideAll();
   document.getElementById('editor').classList.add('visible');
 }
 
@@ -193,7 +213,7 @@ function createNewLevel() {
   currentLevel = { title: "", words: [], groups: {}, colors: {}, hintPair: [] };
   selectedHint = [];
   renderEditor();
-  document.getElementById('menu').classList.remove('visible');
+  hideAll();
   document.getElementById('editor').classList.add('visible');
 }
 
@@ -205,7 +225,6 @@ function renderEditor() {
   for (let i = 0; i < 4; i++) {
     const name = keys[i] || "";
     const words = currentLevel.groups?.[name] || ["", "", "", ""];
-    const color = currentLevel.colors?.[name] || "";
     const block = document.createElement('div');
     block.className = 'group-block';
     block.innerHTML = `
@@ -225,15 +244,14 @@ function openColorPicker(i) {
   colorTargetGroup = name;
   document.getElementById('colorModal').style.display = 'flex';
 }
-
+function closeColorModal() {
+  document.getElementById('colorModal').style.display = 'none';
+}
 function applyColor() {
   const color = document.getElementById('colorPicker').value;
   currentLevel.colors = currentLevel.colors || {};
   currentLevel.colors[colorTargetGroup] = color;
   closeColorModal();
-}
-function closeColorModal() {
-  document.getElementById('colorModal').style.display = 'none';
 }
 
 function goToHintSelection() {
@@ -254,7 +272,7 @@ function goToHintSelection() {
   }
   selectedHint = [...currentLevel.hintPair];
   renderHintGrid();
-  document.getElementById('editor').classList.remove('visible');
+  hideAll();
   document.getElementById('hintSelection').classList.add('visible');
 }
 
@@ -284,16 +302,6 @@ function isValidHint() {
   return Object.values(currentLevel.groups).some(group =>
     group.includes(selectedHint[0]) && group.includes(selectedHint[1])
   );
-}
-
-function backToMenu() {
-  document.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
-  document.getElementById('menu').classList.add('visible');
-}
-
-function backToEditor() {
-  document.getElementById('hintSelection').classList.remove('visible');
-  document.getElementById('editor').classList.add('visible');
 }
 
 function saveLevel() {
