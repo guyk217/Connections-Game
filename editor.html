@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ניהול שלבים - DEBUG</title>
+  <title>ניהול שלבים</title>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -275,7 +275,9 @@ function copyJson() {
 
 function copyFullPayload() {
   const content = JSON.stringify([...levels], null, 2);
-  const b64 = btoa(unescape(encodeURIComponent(content)));
+  const encoder = new TextEncoder();
+  const uint8Array = encoder.encode(content);
+  const b64 = btoa(String.fromCharCode(...uint8Array));
   navigator.clipboard.writeText(JSON.stringify({ message: "Update levels", content: b64, sha: sha }, null, 2))
     .then(() => alert("הועתק תוכן בקשת GitHub"));
 }
@@ -295,7 +297,9 @@ function saveLevel() {
 
 function uploadToGitHub(data, callback) {
   const content = JSON.stringify(data, null, 2);
-  const b64 = btoa(unescape(encodeURIComponent(content)));
+  const encoder = new TextEncoder();
+  const uint8Array = encoder.encode(content);
+  const b64 = btoa(String.fromCharCode(...uint8Array));
   const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
   fetch(apiUrl, {
     headers: { Authorization: `token ${token}` }
