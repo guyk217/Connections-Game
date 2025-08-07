@@ -163,12 +163,20 @@ function deleteLevel(i) {
 }
 
 function createNewLevel() {
-  editingIndex = null;
-  currentLevel = { title: "", words: [], groups: {}, hintPair: [], difficulty: "קל" };
-  selectedHint = [];
-  renderEditor();
-  document.getElementById('menu').classList.remove('visible');
-  document.getElementById('editor').classList.add('visible');
+  fetch("https://raw.githubusercontent.com/guyk217/Connections-Game/main/levels.json")
+    .then(res => res.json())
+    .then(data => {
+      levels = data;
+      editingIndex = null;
+      currentLevel = { title: "", words: [], groups: {}, hintPair: [], difficulty: "קל" };
+      selectedHint = [];
+      renderEditor();
+      document.getElementById('menu').classList.remove('visible');
+      document.getElementById('editor').classList.add('visible');
+    })
+    .catch(err => {
+      alert("שגיאה בטעינת השלבים: " + err);
+    });
 }
 
 function renderEditor() {
@@ -282,46 +290,15 @@ function copyFullPayload() {
 
 function saveLevel() {
   currentLevel.hintPair = [...selectedHint];
-  const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
-
-  fetch(apiUrl, {
-    headers: { Authorization: `token ${token}` }
-  })
-    .then(res => res.json())
-    .then(json => {
-      sha = json.sha;
-      const decoded = atob(json.content.replace(/\n/g, ''));
-      const parsed = JSON.parse(decoded);
-
-      if (editingIndex !== null) {
-        parsed[editingIndex] = currentLevel;
-      } else {
-        parsed.push(currentLevel);
-      }
-
-      const newContent = JSON.stringify(parsed, null, 2);
-      const encoder = new TextEncoder();
-      const uint8Array = encoder.encode(newContent);
-      const b64 = btoa(String.fromCharCode(...uint8Array));
-
-      return fetch(apiUrl, {
-        method: "PUT",
-        headers: {
-          Authorization: `token ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          message: "Update levels",
-          content: b64,
-          sha: sha
-        })
-      });
-    })
-    .then(() => {
-      alert("נשמר בהצלחה!");
-      backToMenu();
-    })
-    .catch(err => alert("שגיאה בשמירה: " + err));
+  if (editingIndex !== null) {
+    levels[editingIndex] = currentLevel;
+  } else {
+    levels.push(currentLevel);
+  }
+  uploadToGitHub(levels, () => {
+    alert("נשמר בהצלחה!");
+    backToMenu();
+  });
 }
 
 function uploadToGitHub(data, callback) {
