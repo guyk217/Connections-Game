@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8" />
+  <title>בדיקת כתיבה ל־GitHub</title>
+  <style>
+    body { font-family: sans-serif; background: #fffbe7; text-align: center; padding: 30px; }
+    button { font-size: 18px; padding: 10px 20px; margin-top: 20px; }
+    pre { text-align: left; direction: ltr; background: #eee; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h2>🔍 בדיקת כתיבה לקובץ levels.json</h2>
+  <button onclick="startTest()">הפעל בדיקה</button>
+  <pre id="log">מוכן...</pre>
+
+  <script>
+    const token = "ghp_..."; // ← הדבק כאן את הטוקן שלך
+    const repo = "guyk217/Connections-Game";
+    const path = "levels.json";
+
+    const api = `https://api.github.com/repos/${repo}/contents/${path}`;
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github.v3+json"
+    };
+
+    async function startTest() {
+      log("🚀 טוען את הקובץ...");
+      const res = await fetch(api, { headers });
+      if (!res.ok) return log("❌ שגיאה בטעינה: " + res.status);
+
+      const data = await res.json();
+      const sha = data.sha;
+      const originalText = atob(data.content.replace(/\n/g, ""));
+      navigator.clipboard.writeText(originalText);
+      log("📋 התוכן המקורי הועתק ל־Clipboard");
+
+      let json;
+      try {
+        json = JSON.parse(originalText);
+        if (!Array.isArray(json)) throw "קובץ לא במבנה של מערך";
+      } catch (e) {
+        return log("❌ שגיאת JSON: " + e);
+      }
+
+      const testLevel = {
+        title: "שלב בדיקה",
+        words: [
+          "בדיקה1", "בדיקה2", "בדיקה3", "בדיקה4",
+          "בדיקה5", "בדיקה6", "בדיקה7", "בדיקה8",
+          "בדיקה9", "בדיקה10", "בדיקה11", "בדיקה12",
+          "בדיקה13", "בדיקה14", "בדיקה15", "בדיקה16"
+        ],
+        groups: {
+          "קבוצה א": ["בדיקה1", "בדיקה2", "בדיקה3", "בדיקה4"],
+          "קבוצה ב": ["בדיקה5", "בדיקה6", "בדיקה7", "בדיקה8"],
+          "קבוצה ג": ["בדיקה9", "בדיקה10", "בדיקה11", "בדיקה12"],
+          "קבוצה ד": ["בדיקה13", "בדיקה14", "בדיקה15", "בדיקה16"]
+        },
+        hintPair: ["בדיקה1", "בדיקה2"]
+      };
+
+      json.push(testLevel);
+      const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(json, null, 2))));
+
+      log("📝 שומר עם שלב בדיקה...");
+      const updateRes = await fetch(api, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          message: "בדיקת כתיבה לקובץ levels.json",
+          content: newContent,
+          sha
+        })
+      });
+
+      if (updateRes.ok) {
+        log("✅ הקובץ עודכן בהצלחה!");
+      } else {
+        const err = await updateRes.json();
+        log("❌ שגיאה בשמירה: " + JSON.stringify(err, null, 2));
+      }
+    }
+
+    function log(msg) {
+      document.getElementById("log").textContent = msg;
+    }
+  </script>
+</body>
+</html>
