@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>בדיקת כתיבה ל-GitHub</title>
+  <title>בדיקת שמירה ל-!!!GitHub</title>
   <style>
     body { font-family: sans-serif; padding: 20px; background: #fff8dc; direction: rtl; }
     input, button { font-size: 16px; padding: 10px; width: 100%; margin-bottom: 10px; }
@@ -11,7 +11,7 @@
 </head>
 <body>
 
-<h1>בדיקת שמירה ל-GitHub</h1>
+<h1>בדיקת כתיבה ל־GitHub</h1>
 <input type="password" id="token" placeholder="הכנס טוקן GitHub (ghp_...)">
 <button onclick="start()">בדוק כתיבה</button>
 <pre id="log"></pre>
@@ -33,11 +33,10 @@ async function start() {
 
   const fileData = await getRes.json();
   const sha = fileData.sha;
+  const content = atob(fileData.content.replace(/\n/g, ""));
+  const levels = JSON.parse(content);
 
-  const decoded = decodeURIComponent(escape(atob(fileData.content)));
-  const levels = JSON.parse(decoded);
-
-  log("✅ נטען. מעתיק גיבוי לקליפבורד...");
+  // גיבוי לקליפבורד
   await navigator.clipboard.writeText(JSON.stringify(levels, null, 2));
   log("📋 נשמר לקליפבורד.");
 
@@ -55,11 +54,13 @@ async function start() {
     hintPair: ["א", "ב"]
   });
 
-  const encoded = btoa(encodeURIComponent(JSON.stringify(levels, null, 2)).replace(/%([0-9A-F]{2})/g, (_, p1) =>
-    String.fromCharCode('0x' + p1)
-  ));
+  // המרה נכונה ל־Base64 כולל עברית
+  const encoder = new TextEncoder();
+  const utf8 = encoder.encode(JSON.stringify(levels, null, 2));
+  const binary = Array.from(utf8).map(b => String.fromCharCode(b)).join('');
+  const base64 = btoa(binary);
 
-  log("📝 שומר קובץ...");
+  log("📝 שומר...");
   const putRes = await fetch(apiUrl, {
     method: "PUT",
     headers: {
@@ -67,8 +68,8 @@ async function start() {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      message: "בדיקת כתיבה דרך test.html",
-      content: encoded,
+      message: "בדיקת שמירה בעברית תקינה",
+      content: base64,
       sha: sha
     })
   });
@@ -76,8 +77,8 @@ async function start() {
   if (putRes.ok) {
     log("✅ נשמר בהצלחה!");
   } else {
-    const error = await putRes.text();
-    log("❌ שגיאה בשמירה: " + error);
+    const err = await putRes.text();
+    log("❌ שגיאה בשמירה:\n" + err);
   }
 }
 </script>
