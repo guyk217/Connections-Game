@@ -1,102 +1,86 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="he">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>בדיקת כתיבה ל־GitHub</title>
+  <title>בדיקת כתיבה ל-GitHub</title>
   <style>
-    body { font-family: sans-serif; background: #fffbe7; text-align: center; padding: 30px; }
-    button, input { font-size: 18px; padding: 10px; margin: 10px; }
-    pre { text-align: left; direction: ltr; background: #eee; padding: 10px; overflow-x: auto; }
+    body { font-family: sans-serif; padding: 20px; background: #fff8dc; direction: rtl; }
+    input, button { font-size: 16px; padding: 10px; width: 100%; margin-bottom: 10px; }
+    pre { background: #eee; padding: 10px; overflow-x: auto; max-height: 300px; }
   </style>
 </head>
 <body>
-  <h2>🔐 בדיקת כתיבה לקובץ levels.json</h2>
 
-  <input type="password" id="tokenInput" placeholder="הכנס את הטוקן שלך (ghp_...)" size="40">
-  <br>
-  <button onclick="startTest()">הפעל בדיקה</button>
-  <pre id="log">מוכן לבדיקה.</pre>
+<h1>בדיקת שמירה ל-GitHub</h1>
+<input type="password" id="token" placeholder="הכנס טוקן GitHub (ghp_...)">
+<button onclick="start()">בדוק כתיבה</button>
+<pre id="log"></pre>
 
-  <script>
-    const repo = "guyk217/Connections-Game";
-    const path = "levels.json";
-    const api = `https://api.github.com/repos/${repo}/contents/${path}`;
+<script>
+async function start() {
+  const log = msg => document.getElementById('log').textContent += msg + '\n';
+  const token = document.getElementById('token').value.trim();
+  if (!token) return alert("הכנס טוקן");
 
-    function log(msg) {
-      document.getElementById("log").textContent = msg;
-    }
+  const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
+  log("🔄 טוען קובץ...");
 
-    async function startTest() {
-      const token = document.getElementById("tokenInput").value.trim();
-      if (!token.startsWith("ghp_")) {
-        return log("❌ טוקן לא תקין. ודא שהוא מתחיל ב־ghp_");
-      }
+  const getRes = await fetch(apiUrl, {
+    headers: { Authorization: `token ${token}` }
+  });
 
-      const headers = {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github.v3+json"
-      };
+  if (!getRes.ok) return log("❌ שגיאה בקריאה: " + getRes.status);
 
-      log("🔄 טוען את הקובץ...");
-      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, { headers });
-      if (!res.ok) {
-        const err = await res.json();
-        return log("❌ שגיאה בטעינה:\n" + JSON.stringify(err, null, 2));
-      }
+  const fileData = await getRes.json();
+  const sha = fileData.sha;
 
-      const data = await res.json();
-      const sha = data.sha;
-      const originalText = atob(data.content.replace(/\n/g, ""));
-      navigator.clipboard.writeText(originalText);
-      log("📋 התוכן המקורי הועתק ל־Clipboard.");
+  const decoded = decodeURIComponent(escape(atob(fileData.content)));
+  const levels = JSON.parse(decoded);
 
-      let json;
-      try {
-        json = JSON.parse(originalText);
-        if (!Array.isArray(json)) throw "קובץ JSON אינו מערך.";
-      } catch (e) {
-        return log("❌ שגיאת JSON: " + e);
-      }
+  log("✅ נטען. מעתיק גיבוי לקליפבורד...");
+  await navigator.clipboard.writeText(JSON.stringify(levels, null, 2));
+  log("📋 נשמר לקליפבורד.");
 
-      // שלב לבדיקה
-      const testLevel = {
-        title: "שלב בדיקה",
-        words: [
-          "בדיקה1", "בדיקה2", "בדיקה3", "בדיקה4",
-          "בדיקה5", "בדיקה6", "בדיקה7", "בדיקה8",
-          "בדיקה9", "בדיקה10", "בדיקה11", "בדיקה12",
-          "בדיקה13", "בדיקה14", "בדיקה15", "בדיקה16"
-        ],
-        groups: {
-          "קבוצה א": ["בדיקה1", "בדיקה2", "בדיקה3", "בדיקה4"],
-          "קבוצה ב": ["בדיקה5", "בדיקה6", "בדיקה7", "בדיקה8"],
-          "קבוצה ג": ["בדיקה9", "בדיקה10", "בדיקה11", "בדיקה12"],
-          "קבוצה ד": ["בדיקה13", "בדיקה14", "בדיקה15", "בדיקה16"]
-        },
-        hintPair: ["בדיקה1", "בדיקה2"]
-      };
+  // הוספת שלב בדיקה
+  levels.push({
+    title: "בדיקת שמירה",
+    difficulty: "קל",
+    words: ["א", "ב", "ג", "ד", "1", "2", "3", "4", "!", "@", "#", "$", "one", "two", "three", "four"],
+    groups: {
+      "אותיות": ["א", "ב", "ג", "ד"],
+      "מספרים": ["1", "2", "3", "4"],
+      "סמלים": ["!", "@", "#", "$"],
+      "מילים": ["one", "two", "three", "four"]
+    },
+    hintPair: ["א", "ב"]
+  });
 
-      json.push(testLevel);
-      const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(json, null, 2))));
+  const encoded = btoa(encodeURIComponent(JSON.stringify(levels, null, 2)).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+    String.fromCharCode('0x' + p1)
+  ));
 
-      log("📝 שולח לקובץ...");
-      const updateRes = await fetch(api, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({
-          message: "בדיקת כתיבה ל־levels.json",
-          content: newContent,
-          sha
-        })
-      });
+  log("📝 שומר קובץ...");
+  const putRes = await fetch(apiUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      message: "בדיקת כתיבה דרך test.html",
+      content: encoded,
+      sha: sha
+    })
+  });
 
-      if (updateRes.ok) {
-        log("✅ הצלחה – הקובץ עודכן!");
-      } else {
-        const err = await updateRes.json();
-        log("❌ שגיאה בשמירה:\n" + JSON.stringify(err, null, 2));
-      }
-    }
-  </script>
+  if (putRes.ok) {
+    log("✅ נשמר בהצלחה!");
+  } else {
+    const error = await putRes.text();
+    log("❌ שגיאה בשמירה: " + error);
+  }
+}
+</script>
+
 </body>
 </html>
