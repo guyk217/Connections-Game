@@ -5,45 +5,60 @@
   <title>בדיקת כתיבה ל־GitHub</title>
   <style>
     body { font-family: sans-serif; background: #fffbe7; text-align: center; padding: 30px; }
-    button { font-size: 18px; padding: 10px 20px; margin-top: 20px; }
+    button, input { font-size: 18px; padding: 10px; margin: 10px; }
     pre { text-align: left; direction: ltr; background: #eee; padding: 10px; overflow-x: auto; }
   </style>
 </head>
 <body>
-  <h2>🔍 בדיקת כתיבה לקובץ levels.json</h2>
+  <h2>🔐 בדיקת כתיבה לקובץ levels.json</h2>
+
+  <input type="password" id="tokenInput" placeholder="הכנס את הטוקן שלך (ghp_...)" size="40">
+  <br>
   <button onclick="startTest()">הפעל בדיקה</button>
-  <pre id="log">מוכן...</pre>
+  <pre id="log">מוכן לבדיקה.</pre>
 
   <script>
-    const token = "ghp_..."; // ← הדבק כאן את הטוקן שלך
     const repo = "guyk217/Connections-Game";
     const path = "levels.json";
-
     const api = `https://api.github.com/repos/${repo}/contents/${path}`;
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github.v3+json"
-    };
+
+    function log(msg) {
+      document.getElementById("log").textContent = msg;
+    }
 
     async function startTest() {
-      log("🚀 טוען את הקובץ...");
-      const res = await fetch(api, { headers });
-      if (!res.ok) return log("❌ שגיאה בטעינה: " + res.status);
+      const token = document.getElementById("tokenInput").value.trim();
+      if (!token.startsWith("ghp_")) {
+        return log("❌ טוקן לא תקין. ודא שהוא מתחיל ב־ghp_");
+      }
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json"
+      };
+
+      log("🔄 טוען את הקובץ...");
+      const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, { headers });
+      if (!res.ok) {
+        const err = await res.json();
+        return log("❌ שגיאה בטעינה:\n" + JSON.stringify(err, null, 2));
+      }
 
       const data = await res.json();
       const sha = data.sha;
       const originalText = atob(data.content.replace(/\n/g, ""));
       navigator.clipboard.writeText(originalText);
-      log("📋 התוכן המקורי הועתק ל־Clipboard");
+      log("📋 התוכן המקורי הועתק ל־Clipboard.");
 
       let json;
       try {
         json = JSON.parse(originalText);
-        if (!Array.isArray(json)) throw "קובץ לא במבנה של מערך";
+        if (!Array.isArray(json)) throw "קובץ JSON אינו מערך.";
       } catch (e) {
         return log("❌ שגיאת JSON: " + e);
       }
 
+      // שלב לבדיקה
       const testLevel = {
         title: "שלב בדיקה",
         words: [
@@ -64,27 +79,23 @@
       json.push(testLevel);
       const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(json, null, 2))));
 
-      log("📝 שומר עם שלב בדיקה...");
+      log("📝 שולח לקובץ...");
       const updateRes = await fetch(api, {
         method: "PUT",
         headers,
         body: JSON.stringify({
-          message: "בדיקת כתיבה לקובץ levels.json",
+          message: "בדיקת כתיבה ל־levels.json",
           content: newContent,
           sha
         })
       });
 
       if (updateRes.ok) {
-        log("✅ הקובץ עודכן בהצלחה!");
+        log("✅ הצלחה – הקובץ עודכן!");
       } else {
         const err = await updateRes.json();
-        log("❌ שגיאה בשמירה: " + JSON.stringify(err, null, 2));
+        log("❌ שגיאה בשמירה:\n" + JSON.stringify(err, null, 2));
       }
-    }
-
-    function log(msg) {
-      document.getElementById("log").textContent = msg;
     }
   </script>
 </body>
