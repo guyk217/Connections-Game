@@ -115,6 +115,22 @@ let selectedHint = [];
 let lockedGroup = null;
 let sha = null;
 
+// פונקציות עזר לקידוד ופענוח מחרוזות יוניקוד לבייס64 ובחזרה
+function encodeBase64Unicode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  for (const b of bytes) {
+    binary += String.fromCharCode(b);
+  }
+  return btoa(binary);
+}
+
+function decodeBase64Unicode(b64) {
+  const binary = atob(b64);
+  const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 function enterToken() {
   token = document.getElementById('tokenInput').value.trim();
   if (!token) return alert("יש להזין טוקן");
@@ -281,6 +297,7 @@ function copyJson() {
 
 function copyFullPayload() {
   const content = JSON.stringify([...levels], null, 2);
+  // כאן אפשר להשתמש גם ב‑encodeBase64Unicode אם תרצה
   const encoder = new TextEncoder();
   const uint8Array = encoder.encode(content);
   const b64 = btoa(String.fromCharCode(...uint8Array));
@@ -303,9 +320,7 @@ function saveLevel() {
 
 function uploadToGitHub(data, callback) {
   const content = JSON.stringify(data, null, 2);
-  const encoder = new TextEncoder();
-  const uint8Array = encoder.encode(content);
-  const b64 = btoa(String.fromCharCode(...uint8Array));
+  const b64 = encodeBase64Unicode(content);
   const apiUrl = "https://api.github.com/repos/guyk217/Connections-Game/contents/levels.json";
   fetch(apiUrl, {
     headers: { Authorization: `token ${token}` }
